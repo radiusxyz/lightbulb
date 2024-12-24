@@ -47,6 +47,13 @@ impl SLA {
     }
 }
 
+/// Additional SLA configuration struct that may be useful for auction time validation.
+#[derive(Clone, Debug)]
+pub struct SLAConfig {
+    /// The minimal offset (in milliseconds) between `start_time` and `end_time` for an auction.
+    pub min_end_time_offset_ms: u64,
+}
+
 /// Represents the state of an auction, including the SLA, current highest bid, winner, all bids, and whether it is ended.
 #[derive(Debug, Clone)]
 pub struct AuctionState {

@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use hex;
 use sha2::{Digest, Sha256};
 
-use crate::domain::{AuctionId, AuctionState, Bid, ChainId, Tx, SLA};
+use crate::domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx};
 use crate::services::{auction::AuctionWorker, registry::ChainRegistry};
 use crate::utils::errors::AuctionError;
 use crate::utils::helpers::{current_unix_ms, verify_signature};
@@ -44,46 +44,46 @@ impl AuctionManager {
         })
     }
 
-    /// Creates a new `AuctionId` by hashing the SLA fields with SHA-256 and encoding the result in hex.
-    fn compute_auction_id(sla: &SLA) -> AuctionId {
+    /// Creates a new `AuctionId` by hashing the auction_info fields with SHA-256 and encoding the result in hex.
+    fn compute_auction_id(auction_info: &AuctionInfo) -> AuctionId {
         let mut hasher = Sha256::new();
-        hasher.update(sla.seller_addr.as_bytes());
-        hasher.update(sla.seller_signature.as_bytes());
-        hasher.update(sla.block_height.to_be_bytes());
-        hasher.update(sla.blockspace_size.to_be_bytes());
-        hasher.update(sla.start_time.to_be_bytes());
-        hasher.update(sla.end_time.to_be_bytes());
+        hasher.update(auction_info.seller_addr.as_bytes());
+        hasher.update(auction_info.seller_signature.as_bytes());
+        hasher.update(auction_info.block_height.to_be_bytes());
+        hasher.update(auction_info.blockspace_size.to_be_bytes());
+        hasher.update(auction_info.start_time.to_be_bytes());
+        hasher.update(auction_info.end_time.to_be_bytes());
         let result = hasher.finalize();
         hex::encode(result)
     }
 
-    /// Submits SLA (sale info), validates it, and creates a new auction.
+    /// Submits auction_info (sale info), validates it, and creates a new auction.
     /// Returns the generated `AuctionId` and a mock server signature.
     pub async fn submit_sale_info(
         &self,
         chain_id: ChainId,
-        sla: SLA,
+        auction_info: AuctionInfo,
     ) -> Result<(AuctionId, String), AuctionError> {
         // Validate chain ID
         self.validate_chain(chain_id)?;
 
         // Validate seller
-        self.validate_seller(chain_id, &sla.seller_addr)?;
+        self.validate_seller(chain_id, &auction_info.seller_addr)?;
 
         // Validate seller signature
-        self.validate_seller_signature(&sla)?;
+        self.validate_seller_signature(&auction_info)?;
 
         // Validate gas limit
-        self.validate_gas_limit(chain_id, sla.blockspace_size)?;
+        self.validate_gas_limit(chain_id, auction_info.blockspace_size)?;
 
         // Validate auction timings
-        self.validate_timings(sla.start_time, sla.end_time)?;
+        self.validate_timings(auction_info.start_time, auction_info.end_time)?;
 
         // Generate Auction ID
-        let auction_id = Self::compute_auction_id(&sla);
+        let auction_id = Self::compute_auction_id(&auction_info);
 
         // Create and store AuctionState
-        self.store_auction(chain_id, auction_id.clone(), sla.clone())
+        self.store_auction(chain_id, auction_id.clone(), auction_info.clone())
             .await;
 
         // Generate mock server signature
@@ -96,7 +96,7 @@ impl AuctionManager {
     pub async fn request_sale_info(
         &self,
         chain_id: ChainId,
-    ) -> Result<(AuctionId, SLA), AuctionError> {
+    ) -> Result<(AuctionId, AuctionInfo), AuctionError> {
         let auctions = self.auctions.read().await;
         let chain_auctions = auctions
             .get(&chain_id)
@@ -105,7 +105,7 @@ impl AuctionManager {
         chain_auctions
             .iter()
             .next()
-            .map(|(id, state)| (id.clone(), state.sla.clone()))
+            .map(|(id, state)| (id.clone(), state.auction_info.clone()))
             .ok_or(AuctionError::NoAuctions)
     }
 
@@ -211,8 +211,8 @@ impl AuctionManager {
     }
 
     /// Validates the seller's signature (mock).
-    fn validate_seller_signature(&self, sla: &SLA) -> Result<(), AuctionError> {
-        if !verify_signature(&sla.seller_addr, &sla.seller_signature) {
+    fn validate_seller_signature(&self, auction_info: &AuctionInfo) -> Result<(), AuctionError> {
+        if !verify_signature(&auction_info.seller_addr, &auction_info.seller_signature) {
             Err(AuctionError::InvalidSellerSignature)
         } else {
             Ok(())
@@ -244,12 +244,17 @@ impl AuctionManager {
     }
 
     /// Stores the auction in the in-memory data store.
-    async fn store_auction(&self, chain_id: ChainId, auction_id: AuctionId, sla: SLA) {
+    async fn store_auction(
+        &self,
+        chain_id: ChainId,
+        auction_id: AuctionId,
+        auction_info: AuctionInfo,
+    ) {
         let mut auctions = self.auctions.write().await;
         auctions
             .entry(chain_id)
             .or_insert_with(HashMap::new)
-            .insert(auction_id, AuctionState::new(sla));
+            .insert(auction_id, AuctionState::new(auction_info));
     }
 
     /// Verifies the seller's signature (mock).

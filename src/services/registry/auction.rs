@@ -1,73 +1,84 @@
 use std::collections::HashMap;
 
-use crate::domain::{ChainId, SLA};
+use crate::domain::{AuctionInfo, ChainId};
 use crate::services::registry::ChainRegistry;
 use crate::utils::{errors::AuctionError, helpers::verify_signature};
 
-pub struct SlaRegistry {
+pub struct AuctionRegistry {
     pub chain_registry: ChainRegistry,
-    pub sla_storage: HashMap<ChainId, Vec<SLA>>,
+    pub auction_storage: HashMap<ChainId, Vec<AuctionInfo>>,
 }
 
-impl SlaRegistry {
-    /// Creates a new `SlaRegistry` instance with the given `ChainRegistry`.
+impl AuctionRegistry {
+    /// Creates a new `AuctionRegistry` instance with the given `ChainRegistry`.
     pub fn new(chain_registry: ChainRegistry) -> Self {
-        SlaRegistry {
+        AuctionRegistry {
             chain_registry,
-            sla_storage: HashMap::new(),
+            auction_storage: HashMap::new(),
         }
     }
 
-    /// Retrieves the next SLA for the given chain ID.
-    pub fn get_next_sla(&self, chain_id: ChainId) -> Option<&SLA> {
-        self.sla_storage
+    /// Retrieves the next auction_info for the given chain ID.
+    pub fn get_next_auction_info(&self, chain_id: ChainId) -> Option<&AuctionInfo> {
+        self.auction_storage
             .get(&chain_id)
-            .and_then(|sla_list| sla_list.first())
+            .and_then(|auction_list| auction_list.first())
     }
 
-    /// Submits an SLA to the registry, validating it before storage.
+    /// Submits an auction_info to the registry, validating it before storage.
     ///
-    /// Returns `Ok(())` if the SLA is valid and successfully stored,
+    /// Returns `Ok(())` if the auction_info is valid and successfully stored,
     /// or an `AuctionError` if validation fails.
-    pub fn submit_sale_info(&mut self, chain_id: ChainId, sla: SLA) -> Result<(), AuctionError> {
+    pub fn submit_sale_info(
+        &mut self,
+        chain_id: ChainId,
+        auction_info: AuctionInfo,
+    ) -> Result<(), AuctionError> {
         // Perform validations using our helper function.
-        self.validate_sla(chain_id, &sla)?;
+        self.validate_auction_info(chain_id, &auction_info)?;
 
         // Insert into storage only if validations succeed.
-        self.insert_sla(chain_id, sla);
+        self.insert_auction_info(chain_id, auction_info);
         Ok(())
     }
 
-    /// Inserts an SLA into the appropriate chain's list and sorts the list by `start_time`.
-    fn insert_sla(&mut self, chain_id: ChainId, sla: SLA) {
+    /// Inserts an auction_info into the appropriate chain's list and sorts the list by `start_time`.
+    fn insert_auction_info(&mut self, chain_id: ChainId, auction_info: AuctionInfo) {
         // If this chain doesn't exist yet, create a new vector.
-        self.sla_storage.entry(chain_id).or_default().push(sla);
+        self.auction_storage
+            .entry(chain_id)
+            .or_default()
+            .push(auction_info);
 
         // Sort by `start_time`.
-        if let Some(sla_list) = self.sla_storage.get_mut(&chain_id) {
-            sla_list.sort_by(|a, b| a.start_time.cmp(&b.start_time));
+        if let Some(auction_list) = self.auction_storage.get_mut(&chain_id) {
+            auction_list.sort_by(|a, b| a.start_time.cmp(&b.start_time));
         }
     }
 
-    /// Validates the SLA before storing it.
+    /// Validates the auction_info before storing it.
     ///
     /// Returns `Ok(())` if all validations pass, otherwise
     /// returns the first encountered `AuctionError`.
-    fn validate_sla(&self, chain_id: ChainId, sla: &SLA) -> Result<(), AuctionError> {
+    fn validate_auction_info(
+        &self,
+        chain_id: ChainId,
+        auction_info: &AuctionInfo,
+    ) -> Result<(), AuctionError> {
         // Validate chain ID
         self.validate_chain_id(chain_id)?;
 
         // Validate seller
-        self.validate_seller(chain_id, &sla.seller_addr)?;
+        self.validate_seller(chain_id, &auction_info.seller_addr)?;
 
         // Validate seller signature
-        self.validate_seller_signature(sla)?;
+        self.validate_seller_signature(auction_info)?;
 
         // Validate gas limit
-        self.validate_gas_limit(chain_id, sla.blockspace_size)?;
+        self.validate_gas_limit(chain_id, auction_info.blockspace_size)?;
 
         // Validate timings
-        self.validate_timings(sla.start_time, sla.end_time)?;
+        self.validate_timings(auction_info.start_time, auction_info.end_time)?;
 
         Ok(())
     }
@@ -91,8 +102,8 @@ impl SlaRegistry {
     }
 
     /// Validates the seller's signature (mock).
-    fn validate_seller_signature(&self, sla: &SLA) -> Result<(), AuctionError> {
-        if !verify_signature(&sla.seller_addr, &sla.seller_signature) {
+    fn validate_seller_signature(&self, auction_info: &AuctionInfo) -> Result<(), AuctionError> {
+        if !verify_signature(&auction_info.seller_addr, &auction_info.seller_signature) {
             Err(AuctionError::InvalidSellerSignature)
         } else {
             Ok(())

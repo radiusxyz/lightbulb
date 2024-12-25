@@ -4,19 +4,19 @@ pub mod utils;
 
 #[cfg(test)]
 mod tests {
-    use super::domain::{Bid, Tx, SLA};
+    use super::domain::{AuctionInfo, Bid, Tx};
     use super::services::auction::{AuctionManager, AuctionWorker};
     use super::utils::helpers::current_unix_ms;
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};
 
-    /// Basic test for submitting an SLA to the `AuctionManager`.
+    /// Basic test for submitting an auction_info to the `AuctionManager`.
     /// It checks that an Auction ID (SHA256 hash) is generated and that the auction is stored.
     #[tokio::test]
     async fn test_submit_sale_info() {
         let manager = AuctionManager::new();
         let chain_id = 1;
-        let sla = SLA {
+        let auction_info = AuctionInfo {
             block_height: 123456,
             seller_addr: "0xSellerAddress".to_string(),
             blockspace_size: 1_000_000,
@@ -25,7 +25,9 @@ mod tests {
             seller_signature: "MockSellerSignature".to_string(),
         };
 
-        let result = manager.submit_sale_info(chain_id, sla.clone()).await;
+        let result = manager
+            .submit_sale_info(chain_id, auction_info.clone())
+            .await;
         assert!(result.is_ok(), "Failed to submit sale info");
 
         let (auction_id, server_signature) = result.unwrap();
@@ -39,8 +41,8 @@ mod tests {
             .get_auction_state(chain_id, auction_id.clone())
             .await
             .expect("AuctionState not found");
-        assert_eq!(state.sla.block_height, sla.block_height);
-        assert_eq!(state.sla.seller_addr, sla.seller_addr);
+        assert_eq!(state.auction_info.block_height, auction_info.block_height);
+        assert_eq!(state.auction_info.seller_addr, auction_info.seller_addr);
     }
 
     /// Tests submitting a bid to an auction to ensure it is stored properly.
@@ -48,7 +50,7 @@ mod tests {
     async fn test_submit_bid() {
         let manager = AuctionManager::new();
         let chain_id = 1;
-        let sla = SLA {
+        let auction_info = AuctionInfo {
             block_height: 123456,
             seller_addr: "0xSellerAddress".to_string(),
             blockspace_size: 1_000_000,
@@ -57,7 +59,10 @@ mod tests {
             seller_signature: "MockSellerSignature".to_string(),
         };
 
-        let (auction_id, _) = manager.submit_sale_info(chain_id, sla).await.unwrap();
+        let (auction_id, _) = manager
+            .submit_sale_info(chain_id, auction_info)
+            .await
+            .unwrap();
 
         let bid = Bid {
             bidder_addr: "0xBuyerAddress".to_string(),
@@ -83,7 +88,7 @@ mod tests {
     async fn test_auction_worker_winner_determination() {
         let manager = Arc::new(AuctionManager::new());
         let chain_id = 1;
-        let sla = SLA {
+        let auction_info = AuctionInfo {
             block_height: 123456,
             seller_addr: "0xSellerAddress".to_string(),
             blockspace_size: 1_000_000,
@@ -92,7 +97,10 @@ mod tests {
             seller_signature: "MockSellerSignature".to_string(),
         };
 
-        let (auction_id, _) = manager.submit_sale_info(chain_id, sla).await.unwrap();
+        let (auction_id, _) = manager
+            .submit_sale_info(chain_id, auction_info)
+            .await
+            .unwrap();
 
         let bid1 = Bid {
             bidder_addr: "0xBuyer1".to_string(),

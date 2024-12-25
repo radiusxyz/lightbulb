@@ -13,9 +13,9 @@ pub struct Bid {
     pub tx_list: Vec<Tx>,
 }
 
-/// Represents a Service Level Agreement (SLA) provided by the seller, which is the basis for an auction.
+/// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
 #[derive(Debug, Clone)]
-pub struct SLA {
+pub struct AuctionInfo {
     pub block_height: u64,
     pub seller_addr: String,
     pub blockspace_size: u64,
@@ -26,8 +26,8 @@ pub struct SLA {
     pub seller_signature: String,
 }
 
-impl SLA {
-    /// Creates a new SLA instance with the given parameters.
+impl AuctionInfo {
+    /// Creates a new AuctionInfo instance with the given parameters.
     pub fn new(
         block_height: u64,
         seller_addr: String,
@@ -36,7 +36,7 @@ impl SLA {
         end_time: u64,
         seller_signature: String,
     ) -> Self {
-        SLA {
+        AuctionInfo {
             block_height,
             seller_addr,
             blockspace_size,
@@ -47,10 +47,10 @@ impl SLA {
     }
 }
 
-/// Represents the state of an auction, including the SLA, current highest bid, winner, all bids, and whether it is ended.
+/// Represents the state of an auction, including the AuctionInfo, current highest bid, winner, all bids, and whether it is ended.
 #[derive(Debug, Clone)]
 pub struct AuctionState {
-    pub sla: SLA,
+    pub auction_info: AuctionInfo,
     pub highest_bid: u64,
     pub winner: Option<String>,
     pub bids: Vec<Bid>,
@@ -58,10 +58,10 @@ pub struct AuctionState {
 }
 
 impl AuctionState {
-    /// Creates a new `AuctionState` based on the provided SLA.
-    pub fn new(sla: SLA) -> Self {
+    /// Creates a new `AuctionState` based on the provided AuctionInfo.
+    pub fn new(auction_info: AuctionInfo) -> Self {
         AuctionState {
-            sla,
+            auction_info,
             highest_bid: 0,
             winner: None,
             bids: Vec::new(),

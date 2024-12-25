@@ -40,7 +40,7 @@ impl AuctionWorker {
                     continue;
                 }
 
-                let sla = &auction_state.sla;
+                let sla = &auction_state.auction_info;
 
                 // Mark auction as ended if the end time has passed
                 if now >= sla.end_time {

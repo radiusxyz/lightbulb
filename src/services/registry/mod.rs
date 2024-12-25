@@ -1,5 +1,5 @@
+pub mod auction;
 pub mod chain;
-pub mod sla;
 
+pub use auction::AuctionRegistry;
 pub use chain::ChainRegistry;
-pub use sla::SlaRegistry;

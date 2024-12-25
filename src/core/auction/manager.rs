@@ -4,11 +4,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
+use crate::core::auction::AuctionWorker;
 use crate::domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx};
-use crate::services::auction::AuctionWorker;
 use crate::services::registry::AuctionRegistry;
-use crate::utils::errors::AuctionError;
-use crate::utils::helpers::{compute_auction_id, current_unix_ms, verify_signature};
+use crate::utils::{
+    errors::AuctionError,
+    helpers::{compute_auction_id, current_unix_ms, verify_signature},
+};
 
 /// `AuctionManager` manages ongoing auctions for each chain.
 /// Registration and validation of auctions are handled by `AuctionRegistry`,

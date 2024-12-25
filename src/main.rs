@@ -1,10 +1,8 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use lightbulb::services::{
-    auction::AuctionManager,
-    registry::{AuctionRegistry, ChainRegistry},
-};
+use lightbulb::core::auction::AuctionManager;
+use lightbulb::services::registry::{AuctionRegistry, ChainRegistry};
 
 #[tokio::main]
 async fn main() {

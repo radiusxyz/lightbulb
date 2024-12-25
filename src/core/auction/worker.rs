@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use crate::services::auction::AuctionManager;
+use crate::core::auction::AuctionManager;
 use crate::utils::helpers::current_unix_ms;
 
 /// The `AuctionWorker` is an actor-like structure that runs in the background,

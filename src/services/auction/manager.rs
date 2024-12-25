@@ -8,7 +8,7 @@ use hex;
 use sha2::{Digest, Sha256};
 
 use crate::domain::{AuctionId, AuctionState, Bid, ChainId, Tx, SLA};
-use crate::services::{auction::AuctionWorker, chain_registry::ChainRegistry};
+use crate::services::{auction::AuctionWorker, registry::ChainRegistry};
 use crate::utils::errors::AuctionError;
 use crate::utils::helpers::{current_unix_ms, verify_signature};
 

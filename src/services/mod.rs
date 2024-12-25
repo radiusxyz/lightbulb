@@ -1,2 +1,2 @@
 pub mod auction;
-pub mod chain_registry;
+pub mod registry;

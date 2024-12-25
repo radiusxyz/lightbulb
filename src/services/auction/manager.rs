@@ -47,20 +47,17 @@ impl AuctionManager {
     /// and sets the ongoing auction in `ongoing_auction_ids` and `ongoing_auctions`.
     ///
     /// - If an auction is already ongoing, it can be overwritten or raise an error.
-    /// - Returns `AuctionError::NoAuctions` if no auction is available.
-    pub async fn start_next_auction(&self, chain_id: ChainId) -> Result<AuctionId, AuctionError> {
-        let next_auction_info = self
-            .auction_registry
-            .get_next_auction_info(chain_id)
-            .ok_or(AuctionError::NoAuctions)?;
+    /// - Returns `None` if no auction is available or if the auction start time has not yet been reached.
+    pub async fn start_next_auction(&self, chain_id: ChainId) -> Option<AuctionId> {
+        // Fetch the next auction information
+        let next_auction_info = self.auction_registry.get_next_auction_info(chain_id)?;
 
         // Check if the auction start time has passed
-        if current_unix_ms() <= next_auction_info.start_time {
-            return Err(AuctionError::AuctionNotStarted);
+        if current_unix_ms() < next_auction_info.start_time {
+            return None;
         }
 
         // Compute auction ID
-        // May be better to move this to AuctionRegistry
         let auction_id = compute_auction_id(next_auction_info);
 
         // Create AuctionState (initial state)
@@ -75,7 +72,8 @@ impl AuctionManager {
             states.insert(chain_id, new_auction_state);
         }
 
-        Ok(auction_id)
+        // Return the auction ID
+        Some(auction_id)
     }
 
     /// Requests the `AuctionInfo` of the current ongoing auction.

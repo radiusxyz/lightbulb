@@ -105,7 +105,7 @@ impl AuctionManager {
             let ids = self.ongoing_auction_ids.read().await;
             let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
             if *ongoing_id != auction_id {
-                return Err(AuctionError::InvalidAuctionId);
+                return Err(AuctionError::InvalidAuctionId(auction_id));
             }
         }
 
@@ -138,7 +138,7 @@ impl AuctionManager {
         let ids = self.ongoing_auction_ids.read().await;
         let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
         if *ongoing_id != auction_id {
-            return Err(AuctionError::InvalidAuctionId);
+            return Err(AuctionError::InvalidAuctionId(auction_id));
         }
 
         let states = self.ongoing_auctions.read().await;
@@ -167,7 +167,7 @@ impl AuctionManager {
         let ids = self.ongoing_auction_ids.read().await;
         let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
         if *ongoing_id != auction_id {
-            return Err(AuctionError::InvalidAuctionId);
+            return Err(AuctionError::InvalidAuctionId(auction_id));
         }
 
         let states = self.ongoing_auctions.read().await;

@@ -3,7 +3,7 @@ use tokio::time::{sleep, Duration};
 
 use lightbulb::services::{
     auction::AuctionManager,
-    registry::{chain, AuctionRegistry, ChainRegistry},
+    registry::{AuctionRegistry, ChainRegistry},
 };
 
 #[tokio::main]

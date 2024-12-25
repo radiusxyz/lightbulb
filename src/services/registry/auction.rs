@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::domain::{AuctionInfo, ChainId};
 use crate::services::registry::ChainRegistry;
-use crate::utils::{errors::AuctionError, helpers::verify_signature};
+use crate::utils::{errors::RegistryError, helpers::verify_signature};
 
 pub struct AuctionRegistry {
     pub chain_registry: ChainRegistry,
@@ -28,12 +28,12 @@ impl AuctionRegistry {
     /// Submits an auction_info to the registry, validating it before storage.
     ///
     /// Returns `Ok(())` if the auction_info is valid and successfully stored,
-    /// or an `AuctionError` if validation fails.
+    /// or an `RegistryError` if validation fails.
     pub fn submit_sale_info(
         &mut self,
         chain_id: ChainId,
         auction_info: AuctionInfo,
-    ) -> Result<(), AuctionError> {
+    ) -> Result<(), RegistryError> {
         // Perform validations using our helper function.
         self.validate_auction_info(chain_id, &auction_info)?;
 
@@ -44,14 +44,11 @@ impl AuctionRegistry {
 
     /// Inserts an auction_info into the appropriate chain's list and sorts the list by `start_time`.
     fn insert_auction_info(&mut self, chain_id: ChainId, auction_info: AuctionInfo) {
-        // If this chain doesn't exist yet, create a new vector.
-        self.auction_storage
-            .entry(chain_id)
-            .or_default()
-            .push(auction_info);
-
-        // Sort by `start_time`.
+        // Insert the auction info
         if let Some(auction_list) = self.auction_storage.get_mut(&chain_id) {
+            auction_list.push(auction_info);
+
+            // Sort by `start_time`
             auction_list.sort_by(|a, b| a.start_time.cmp(&b.start_time));
         }
     }
@@ -59,12 +56,12 @@ impl AuctionRegistry {
     /// Validates the auction_info before storing it.
     ///
     /// Returns `Ok(())` if all validations pass, otherwise
-    /// returns the first encountered `AuctionError`.
+    /// returns the first encountered `RegistryError`.
     fn validate_auction_info(
         &self,
         chain_id: ChainId,
         auction_info: &AuctionInfo,
-    ) -> Result<(), AuctionError> {
+    ) -> Result<(), RegistryError> {
         // Validate chain ID
         self.validate_chain_id(chain_id)?;
 
@@ -83,28 +80,32 @@ impl AuctionRegistry {
         Ok(())
     }
 
+    // ------------------------ Validation Helpers ------------------------
+
     /// Validates the chain ID.
-    fn validate_chain_id(&self, chain_id: ChainId) -> Result<(), AuctionError> {
-        if !self.chain_registry.validate_chain_id(chain_id) {
-            Err(AuctionError::InvalidChainId)
+    fn validate_chain_id(&self, chain_id: ChainId) -> Result<(), RegistryError> {
+        if !self.chain_registry.validate_chain_id(chain_id)
+            || !self.auction_storage.contains_key(&chain_id)
+        {
+            Err(RegistryError::InvalidChainId(chain_id))
         } else {
             Ok(())
         }
     }
 
     /// Validates the seller's registration on the chain.
-    fn validate_seller(&self, chain_id: ChainId, seller_addr: &str) -> Result<(), AuctionError> {
+    fn validate_seller(&self, chain_id: ChainId, seller_addr: &str) -> Result<(), RegistryError> {
         if !self.chain_registry.is_valid_seller(chain_id, seller_addr) {
-            Err(AuctionError::SellerNotRegistered)
+            Err(RegistryError::SellerNotRegistered)
         } else {
             Ok(())
         }
     }
 
     /// Validates the seller's signature (mock).
-    fn validate_seller_signature(&self, auction_info: &AuctionInfo) -> Result<(), AuctionError> {
+    fn validate_seller_signature(&self, auction_info: &AuctionInfo) -> Result<(), RegistryError> {
         if !verify_signature(&auction_info.seller_addr, &auction_info.seller_signature) {
-            Err(AuctionError::InvalidSellerSignature)
+            Err(RegistryError::InvalidSellerSignature)
         } else {
             Ok(())
         }
@@ -115,16 +116,16 @@ impl AuctionRegistry {
         &self,
         chain_id: ChainId,
         blockspace_size: u64,
-    ) -> Result<(), AuctionError> {
+    ) -> Result<(), RegistryError> {
         match self.chain_registry.get_max_gas_limit(chain_id) {
             Some(max_gas) if blockspace_size <= max_gas => Ok(()),
-            _ => Err(AuctionError::InvalidGasLimit),
+            _ => Err(RegistryError::InvalidGasLimit),
         }
     }
 
-    fn validate_timings(&self, start_time: u64, end_time: u64) -> Result<(), AuctionError> {
+    fn validate_timings(&self, start_time: u64, end_time: u64) -> Result<(), RegistryError> {
         if end_time < start_time + 500 {
-            return Err(AuctionError::InvalidAuctionTime);
+            return Err(RegistryError::InvalidAuctionTime);
         }
         Ok(())
     }

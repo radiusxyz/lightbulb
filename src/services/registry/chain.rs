@@ -1,14 +1,9 @@
-use crate::domain::ChainId;
+use crate::domain::{ChainId, ChainInfo};
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct ChainRegistry {
     chain_info: HashMap<ChainId, ChainInfo>,
-}
-
-struct ChainInfo {
-    gas_limit: u64,
-    registered_sellers: Vec<String>,
 }
 
 impl ChainRegistry {

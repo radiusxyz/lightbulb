@@ -70,6 +70,11 @@ impl AuctionState {
     }
 }
 
+pub struct ChainInfo {
+    pub gas_limit: u64,
+    pub registered_sellers: Vec<String>,
+}
+
 // ------------------------ Type Aliases ------------------------
 
 pub type ChainId = u64;

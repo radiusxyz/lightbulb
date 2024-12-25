@@ -30,6 +30,9 @@ pub enum AuctionError {
     #[error("Insufficient funds for the bid")]
     InsufficientFunds,
 
+    #[error("Auction has not started yet")]
+    AuctionNotStarted,
+
     #[error("Auction has already ended")]
     AuctionEnded,
 }

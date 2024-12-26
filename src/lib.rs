@@ -1,4 +1,5 @@
 pub mod core;
+pub mod db;
 pub mod domain;
 pub mod services;
 pub mod utils;
@@ -35,7 +36,7 @@ mod tests {
         let end_time = start_time + 2_000; // 2 seconds from now
         let auction_info = AuctionInfo {
             id: "test-auction-id".to_string(), // Normally you might use AuctionInfo::new(...).
-            block_height: 12345,
+            block_number: 12345,
             seller_addr: "0xSellerAddress".to_string(), // Must match a registered seller in ChainRegistry
             blockspace_size: 500,
             start_time,

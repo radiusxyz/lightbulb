@@ -1,4 +1,6 @@
-use crate::utils::helpers::compute_hash;
+use async_trait::async_trait;
+
+use crate::utils::{errors::DatabaseError, helpers::compute_hash};
 
 /// Represents a transaction submitted by a bidder (mock).
 #[derive(Debug, Clone)]
@@ -16,15 +18,13 @@ pub struct Bid {
 }
 
 /// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct AuctionInfo {
     pub id: AuctionId,
-    pub block_height: u64,
+    pub block_number: u64,
     pub seller_addr: String,
     pub blockspace_size: u64,
-    /// Start time in Unix milliseconds.
     pub start_time: u64,
-    /// End time in Unix milliseconds.
     pub end_time: u64,
     pub seller_signature: String,
 }
@@ -32,7 +32,7 @@ pub struct AuctionInfo {
 impl AuctionInfo {
     /// Creates a new AuctionInfo instance with the given parameters.
     pub fn new(
-        block_height: u64,
+        block_number: u64,
         seller_addr: String,
         blockspace_size: u64,
         start_time: u64,
@@ -41,14 +41,14 @@ impl AuctionInfo {
     ) -> Self {
         AuctionInfo {
             id: compute_hash(&[
-                block_height.to_be_bytes().as_ref(),
+                block_number.to_be_bytes().as_ref(),
                 seller_addr.as_bytes(),
                 blockspace_size.to_be_bytes().as_ref(),
                 start_time.to_be_bytes().as_ref(),
                 end_time.to_be_bytes().as_ref(),
                 seller_signature.as_bytes(),
             ]),
-            block_height,
+            block_number,
             seller_addr,
             blockspace_size,
             start_time,
@@ -88,7 +88,24 @@ pub struct AuctionResult {
     pub winner: String,
 }
 
-// ------------------------ Type Aliases ------------------------
+// ------------------------------------------------------------------------
+// Type aliases
+// ------------------------------------------------------------------------
 
 pub type ChainId = u64;
 pub type AuctionId = String;
+
+// ------------------------------------------------------------------------
+// Repository Traits
+// ------------------------------------------------------------------------
+
+#[async_trait]
+pub trait AuctionRepository {
+    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError>;
+    async fn get_auction_info(
+        &self,
+        auction_id: &str,
+    ) -> Result<Option<AuctionInfo>, DatabaseError>;
+    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError>;
+    async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError>;
+}

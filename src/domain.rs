@@ -82,12 +82,6 @@ impl AuctionState {
 }
 
 #[derive(Debug, Clone)]
-pub struct ChainInfo {
-    pub gas_limit: u64,
-    pub registered_sellers: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
 pub struct AuctionResult {
     pub chain_id: ChainId,
     pub auction_id: AuctionId,

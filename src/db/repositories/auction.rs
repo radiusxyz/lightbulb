@@ -17,13 +17,13 @@ impl SqliteAuctionRepository {
 impl AuctionRepository for SqliteAuctionRepository {
     async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError> {
         let query = r#"
-            INSERT INTO auctions (id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature)
+            INSERT INTO auctions (id, block_number, seller_addr, blockspace_size, start_time, end_time, seller_signature)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
             .bind(&auction_info.id)
-            .bind(auction_info.block_height as i64)
+            .bind(auction_info.block_number as i64)
             .bind(&auction_info.seller_addr)
             .bind(auction_info.blockspace_size as i64)
             .bind(auction_info.start_time as i64)
@@ -40,7 +40,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         auction_id: &str,
     ) -> Result<Option<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature
+            SELECT id, block_number, seller_addr, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
             WHERE id = ?
         "#;
@@ -55,7 +55,7 @@ impl AuctionRepository for SqliteAuctionRepository {
 
     async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature
+            SELECT id, block_number, seller_addr, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
         "#;
 
@@ -94,7 +94,7 @@ mod tests {
         // Create AuctionInfo for testing
         let auction_info = AuctionInfo {
             id: "test_auction".to_string(),
-            block_height: 100,
+            block_number: 100,
             seller_addr: "test_seller".to_string(),
             blockspace_size: 500,
             start_time: 1633036800,
@@ -111,8 +111,8 @@ mod tests {
         let fetched = fetched.unwrap();
         assert_eq!(fetched.id, auction_info.id);
         assert_eq!(
-            fetched.block_height as i64,
-            auction_info.block_height as i64
+            fetched.block_number as i64,
+            auction_info.block_number as i64
         );
         assert_eq!(fetched.seller_addr, auction_info.seller_addr);
         assert_eq!(
@@ -135,7 +135,7 @@ mod tests {
         // Create and insert two AuctionInfo instances
         let auction1 = AuctionInfo {
             id: "auction1".to_string(),
-            block_height: 101,
+            block_number: 101,
             seller_addr: "seller1".to_string(),
             blockspace_size: 600,
             start_time: 1633036801,
@@ -145,7 +145,7 @@ mod tests {
 
         let auction2 = AuctionInfo {
             id: "auction2".to_string(),
-            block_height: 102,
+            block_number: 102,
             seller_addr: "seller2".to_string(),
             blockspace_size: 700,
             start_time: 1633036802,
@@ -174,7 +174,7 @@ mod tests {
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
             id: "auction_to_delete".to_string(),
-            block_height: 103,
+            block_number: 103,
             seller_addr: "seller3".to_string(),
             blockspace_size: 800,
             start_time: 1633036803,
@@ -207,7 +207,7 @@ mod tests {
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
             id: "duplicate_auction".to_string(),
-            block_height: 104,
+            block_number: 104,
             seller_addr: "seller4".to_string(),
             blockspace_size: 900,
             start_time: 1633036804,

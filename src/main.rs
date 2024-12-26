@@ -1,10 +1,7 @@
-use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use lightbulb::services::{
-    auction::AuctionManager,
-    registry::{AuctionRegistry, ChainRegistry},
-};
+use lightbulb::core::auction::AuctionManager;
+use lightbulb::services::registry::{AuctionRegistry, ChainRegistry};
 
 #[tokio::main]
 async fn main() {
@@ -12,15 +9,12 @@ async fn main() {
     let chain_registry = ChainRegistry::new();
     let auction_registry = AuctionRegistry::new(chain_registry);
 
-    // Create the auction manager with the auction registry.
-    let manager = Arc::new(AuctionManager::new(auction_registry));
-
-    // Start the background worker in an actor-like pattern to periodically process auctions.
-    let _jh = manager.start_worker();
+    // Create an `AuctionManager` instance.
+    let _manager = AuctionManager::new(auction_registry, &[1, 2, 3]);
 
     println!("Auction Manager started. Background worker running.");
 
-    // For demonstration purposes, keep the main thread alive.
+    // Keep the main thread alive.
     loop {
         sleep(Duration::from_secs(60)).await;
     }

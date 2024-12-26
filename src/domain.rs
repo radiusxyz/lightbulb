@@ -1,4 +1,6 @@
-use crate::utils::helpers::compute_hash;
+use async_trait::async_trait;
+
+use crate::utils::{errors::RegistryError, helpers::compute_hash};
 
 /// Represents a transaction submitted by a bidder (mock).
 #[derive(Debug, Clone)]
@@ -16,7 +18,7 @@ pub struct Bid {
 }
 
 /// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct AuctionInfo {
     pub id: AuctionId,
     pub block_height: u64,
@@ -88,7 +90,24 @@ pub struct AuctionResult {
     pub winner: String,
 }
 
-// ------------------------ Type Aliases ------------------------
+// ------------------------------------------------------------------------
+// Type aliases
+// ------------------------------------------------------------------------
 
 pub type ChainId = u64;
 pub type AuctionId = String;
+
+// ------------------------------------------------------------------------
+// Repository Traits
+// ------------------------------------------------------------------------
+
+#[async_trait]
+pub trait AuctionRepository {
+    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), RegistryError>;
+    async fn get_auction_info(
+        &self,
+        auction_id: &str,
+    ) -> Result<Option<AuctionInfo>, RegistryError>;
+    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, RegistryError>;
+    async fn delete_auction(&self, auction_id: &str) -> Result<(), RegistryError>;
+}

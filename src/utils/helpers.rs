@@ -1,5 +1,6 @@
-use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use sha2::{Digest, Sha256};
 
 /// Returns the current Unix timestamp in milliseconds.
 pub fn current_unix_ms() -> u64 {

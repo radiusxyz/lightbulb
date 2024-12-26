@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use tokio::sync::{mpsc::Sender, RwLock};
-use tokio::time::{sleep, Duration};
+use tokio::{
+    sync::{mpsc::Sender, RwLock},
+    time::{sleep, Duration},
+};
 
-use crate::domain::{AuctionId, AuctionInfo, AuctionResult, AuctionState, Bid, ChainId, Tx};
-use crate::utils::errors::AuctionError;
-use crate::utils::helpers::current_unix_ms;
+use crate::domain::{
+    AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType,
+};
+use crate::utils::{errors::AuctionError, helpers::current_unix_ms};
 
 /// `AuctionWorker` manages the state (`AuctionState`) for a specific `ChainId`.
 /// If there is no ongoing auction, it remains idle. When an auction starts,
@@ -19,13 +22,13 @@ pub struct AuctionWorker {
     state: Arc<RwLock<Option<AuctionState>>>,
 
     /// Sender for notifying the manager when an auction ends
-    result_sender: Sender<AuctionResult>,
+    result_sender: Sender<WorkerMessage>,
 }
 
 impl AuctionWorker {
     /// Creates a new `AuctionWorker`.
     /// Initially, there is no active auction, so the `state` is `None`.
-    pub fn new(chain_id: ChainId, result_sender: Sender<AuctionResult>) -> Self {
+    pub fn new(chain_id: ChainId, result_sender: Sender<WorkerMessage>) -> Self {
         AuctionWorker {
             chain_id,
             state: Arc::new(RwLock::new(None)),
@@ -100,7 +103,7 @@ impl AuctionWorker {
 
     /// Returns the most recent ToB (Top-of-Block) information, i.e., the list of transactions
     /// from the current highest bidder. If there is no winner yet, returns an empty list.
-    pub async fn request_latest_tob_info(&self) -> Result<Vec<Tx>, AuctionError> {
+    pub async fn get_latest_tob(&self) -> Result<Vec<Tx>, AuctionError> {
         let guard = self.state.read().await;
         if let Some(ref auction_state) = *guard {
             if let Some(ref winner_addr) = auction_state.winner {
@@ -161,10 +164,10 @@ impl AuctionWorker {
                 }
 
                 let auction_id = info.id.clone();
-                let result = AuctionResult {
+                let result = WorkerMessage {
+                    message_type: WorkerMessageType::AuctionProcessing,
                     chain_id: self.chain_id,
                     auction_id,
-                    winner: auction_state.winner.clone().unwrap(),
                 };
                 self.result_sender
                     .send(result)

@@ -1,5 +1,6 @@
-use crate::domain::{AuctionId, ChainId};
 use thiserror::Error;
+
+use crate::domain::{AuctionId, ChainId};
 
 /// A set of possible errors that can occur in the auction workflow.
 #[derive(Error, Debug)]
@@ -44,8 +45,8 @@ pub enum RegistryError {
     #[error("Invalid chain ID: {0}")]
     InvalidChainId(ChainId),
 
-    #[error("Seller is not registered on the specified chain")]
-    SellerNotRegistered,
+    #[error("Seller {0} is not registered on the specified chain")]
+    SellerNotRegistered(String),
 
     #[error("Invalid seller signature")]
     InvalidSellerSignature,
@@ -55,6 +56,9 @@ pub enum RegistryError {
 
     #[error("Invalid auction time settings")]
     InvalidAuctionTime,
+
+    #[error("Chain {0} is already registered")]
+    ChainAlreadyRegistered(ChainId),
 }
 
 #[derive(Error, Debug)]

@@ -17,12 +17,18 @@ pub struct Bid {
     pub tx_list: Vec<Tx>,
 }
 
+pub struct ChainInfo {
+    pub gas_limit: u64,
+    pub registered_sellers: Vec<String>,
+}
+
 /// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
-#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AuctionInfo {
     pub id: AuctionId,
+    pub chain_id: ChainId,
     pub block_number: u64,
-    pub seller_addr: String,
+    pub seller_address: String,
     pub blockspace_size: u64,
     pub start_time: u64,
     pub end_time: u64,
@@ -32,8 +38,9 @@ pub struct AuctionInfo {
 impl AuctionInfo {
     /// Creates a new AuctionInfo instance with the given parameters.
     pub fn new(
+        chain_id: ChainId,
         block_number: u64,
-        seller_addr: String,
+        seller_address: String,
         blockspace_size: u64,
         start_time: u64,
         end_time: u64,
@@ -41,15 +48,17 @@ impl AuctionInfo {
     ) -> Self {
         AuctionInfo {
             id: compute_hash(&[
+                chain_id.to_be_bytes().as_ref(),
                 block_number.to_be_bytes().as_ref(),
-                seller_addr.as_bytes(),
+                seller_address.as_bytes(),
                 blockspace_size.to_be_bytes().as_ref(),
                 start_time.to_be_bytes().as_ref(),
                 end_time.to_be_bytes().as_ref(),
                 seller_signature.as_bytes(),
             ]),
+            chain_id,
             block_number,
-            seller_addr,
+            seller_address,
             blockspace_size,
             start_time,
             end_time,
@@ -57,6 +66,26 @@ impl AuctionInfo {
         }
     }
 }
+
+impl Ord for AuctionInfo {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.start_time.cmp(&other.start_time)
+    }
+}
+
+impl PartialOrd for AuctionInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for AuctionInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.start_time == other.start_time
+    }
+}
+
+impl Eq for AuctionInfo {}
 
 /// Represents the state of an auction, including the AuctionInfo, current highest bid, winner, all bids, and whether it is ended.
 #[derive(Debug, Clone)]
@@ -86,6 +115,18 @@ pub struct AuctionResult {
     pub chain_id: ChainId,
     pub auction_id: AuctionId,
     pub winner: String,
+}
+
+pub struct WorkerMessage {
+    pub message_type: WorkerMessageType,
+    pub chain_id: ChainId,
+    pub auction_id: AuctionId,
+}
+
+pub enum WorkerMessageType {
+    AuctionEnded,
+    AuctionProcessing,
+    Idle,
 }
 
 // ------------------------------------------------------------------------

@@ -1,204 +1,159 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
+use dashmap::DashMap;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::core::auction::AuctionWorker;
-use crate::domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx};
+use crate::domain::{AuctionId, AuctionInfo, AuctionResult, Bid, ChainId, Tx};
 use crate::services::registry::AuctionRegistry;
-use crate::utils::{
-    errors::AuctionError,
-    helpers::{compute_auction_id, current_unix_ms, verify_signature},
-};
+use crate::utils::{errors::AuctionError, helpers::current_unix_ms};
 
-/// `AuctionManager` manages ongoing auctions for each chain.
-/// Registration and validation of auctions are handled by `AuctionRegistry`,
-/// while `AuctionManager` retrieves auction information from `AuctionRegistry`,
-/// initiates/terminates auctions, and handles bids during an auction.
+/// `AuctionManager` is responsible for scheduling auctions (e.g., starting new auctions, handling bids, requests for information).
+/// The actual state of an auction (`AuctionState`) is fully managed inside `AuctionWorker`.
 #[derive(Clone)]
 pub struct AuctionManager {
-    /// Current auction IDs for each chain
-    pub ongoing_auction_ids: Arc<RwLock<HashMap<ChainId, AuctionId>>>,
-    /// Current auction states for each chain
-    pub ongoing_auctions: Arc<RwLock<HashMap<ChainId, AuctionState>>>,
-    /// Registry of registered auctions and validation logic
+    /// Manages registration (scheduling) and validation logic for auctions
     pub auction_registry: Arc<AuctionRegistry>,
+
+    /// Maps a `ChainId` to its dedicated `AuctionWorker`
+    pub workers: Arc<DashMap<ChainId, Arc<AuctionWorker>>>,
+
+    /// Maps a `ChainId` to a worker's background task handle
+    pub worker_handles: Arc<DashMap<ChainId, JoinHandle<()>>>,
+
+    /// Used by a worker to send an `AuctionResult` when an auction ends
+    pub result_sender: mpsc::Sender<AuctionResult>,
 }
 
 impl AuctionManager {
-    /// Creates a new instance of `AuctionManager`.
-    pub fn new(auction_registry: AuctionRegistry) -> Self {
-        AuctionManager {
-            ongoing_auction_ids: Arc::new(RwLock::new(HashMap::new())),
-            ongoing_auctions: Arc::new(RwLock::new(HashMap::new())),
+    /// Creates a new `AuctionManager`.
+    /// If desired, you could spawn a worker for every `ChainId` at creation time,
+    /// or you can spawn a worker only when a new `ChainId` is introduced.
+    pub fn new(auction_registry: AuctionRegistry, chain_ids: &[ChainId]) -> Self {
+        let (result_sender, mut result_receiver) = mpsc::channel(100);
+
+        let manager = AuctionManager {
             auction_registry: Arc::new(auction_registry),
-        }
-    }
+            workers: Arc::new(DashMap::new()),
+            worker_handles: Arc::new(DashMap::new()),
+            result_sender,
+        };
 
-    /// Starts the `AuctionWorker` responsible for background tasks related to auctions.
-    /// Examples: checking auction end time, automatic settlement, event handling, etc.
-    pub fn start_worker(self: &Arc<Self>) -> JoinHandle<()> {
-        let worker = AuctionWorker::new(self.clone());
+        // Spawn a background task to receive results from workers
+        let manager_clone = manager.clone();
         tokio::spawn(async move {
-            worker.run().await;
-        })
+            while let Some(result) = result_receiver.recv().await {
+                manager_clone.handle_auction_result(result).await;
+            }
+        });
+
+        // Create a worker for each initial `ChainId`
+        for &chain_id in chain_ids {
+            manager.start_worker_for_chain(chain_id);
+        }
+
+        manager
     }
 
-    /// Retrieves the next auction information from `AuctionRegistry`,
-    /// and sets the ongoing auction in `ongoing_auction_ids` and `ongoing_auctions`.
-    ///
-    /// - If an auction is already ongoing, it can be overwritten or raise an error.
-    /// - Returns `None` if no auction is available or if the auction start time has not yet been reached.
-    pub async fn start_next_auction(&self, chain_id: ChainId) -> Option<AuctionId> {
-        // Fetch the next auction information
-        let next_auction_info = self.auction_registry.get_next_auction_info(chain_id)?;
+    /// Creates and runs an `AuctionWorker` for a specified chain in the background.
+    /// Does nothing if a worker for that chain already exists.
+    pub fn start_worker_for_chain(&self, chain_id: ChainId) {
+        if self.workers.contains_key(&chain_id) {
+            return;
+        }
 
-        // Check if the auction start time has passed
-        if current_unix_ms() < next_auction_info.start_time {
+        let worker = Arc::new(AuctionWorker::new(chain_id, self.result_sender.clone()));
+        self.workers.insert(chain_id, worker.clone());
+
+        let handle = tokio::spawn(async move {
+            worker.run().await;
+        });
+
+        self.worker_handles.insert(chain_id, handle);
+    }
+
+    /// Processes a finished auction (received from the worker).
+    /// This is where you could update a database, log events, send notifications, etc.
+    async fn handle_auction_result(&self, result: AuctionResult) {
+        println!(
+            "[Manager] Auction {} on chain {} ended with winner: {}",
+            result.auction_id, result.chain_id, result.winner
+        );
+    }
+
+    // ------------------------------------------------------------------------
+    // Methods for scheduling / controlling auctions
+    // ------------------------------------------------------------------------
+
+    /// Requests to start the next auction. Retrieves scheduling info from `AuctionRegistry`
+    /// and forwards the request to the appropriate worker. Returns the new auction ID or `None`.
+    pub async fn start_next_auction(&self, chain_id: ChainId) -> Option<AuctionId> {
+        let next_info = self.auction_registry.get_next_auction_info(chain_id)?;
+
+        if current_unix_ms() < next_info.start_time {
             return None;
         }
 
-        // Compute auction ID
-        let auction_id = compute_auction_id(next_auction_info);
+        let auction_id = &next_info.id;
 
-        // Create AuctionState (initial state)
-        let new_auction_state = AuctionState::new(next_auction_info.clone());
-
-        {
-            // Acquire write lock and update ongoing auction state
-            let mut ids = self.ongoing_auction_ids.write().await;
-            let mut states = self.ongoing_auctions.write().await;
-
-            ids.insert(chain_id, auction_id.clone());
-            states.insert(chain_id, new_auction_state);
+        if let Some(worker) = self.workers.get(&chain_id) {
+            worker
+                .start_auction(auction_id.clone(), next_info.clone())
+                .await;
+            Some(auction_id.clone())
+        } else {
+            None
         }
-
-        // Return the auction ID
-        Some(auction_id)
     }
 
-    /// Requests the `AuctionInfo` of the current ongoing auction.
-    /// - Returns `AuctionError::NoAuctions` if no auction is found.
-    pub async fn request_sale_info(
-        &self,
-        chain_id: ChainId,
-    ) -> Result<(AuctionId, AuctionInfo), AuctionError> {
-        let ids = self.ongoing_auction_ids.read().await;
-        let states = self.ongoing_auctions.read().await;
-
-        let auction_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?.clone();
-        let state = states.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-
-        Ok((auction_id, state.auction_info.clone()))
-    }
-
-    /// Submits a bid to the auction.
-    /// - Assumes seller signature and chain verification have already passed in `AuctionRegistry`.
-    /// - Simply checks if the auction is ongoing and registers the bid.
+    /// For submitting a bid. We assume validation (e.g., signature checks) is already done at the `AuctionRegistry` level.
     pub async fn submit_bid(
         &self,
         chain_id: ChainId,
         auction_id: AuctionId,
         bid: Bid,
     ) -> Result<String, AuctionError> {
-        // Check if the auction is ongoing
-        {
-            let ids = self.ongoing_auction_ids.read().await;
-            let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-            if *ongoing_id != auction_id {
-                return Err(AuctionError::InvalidAuctionId(auction_id));
-            }
+        if let Some(worker) = self.workers.get(&chain_id) {
+            worker.submit_bid(auction_id, bid).await
+        } else {
+            Err(AuctionError::NoAuctions)
         }
-
-        // Validate the bid
-        self.validate_bid(&bid)?;
-
-        // Record bid in the auction
-        let mut states = self.ongoing_auctions.write().await;
-        let auction_state = states.get_mut(&chain_id).ok_or(AuctionError::NoAuctions)?;
-
-        if auction_state.is_ended {
-            return Err(AuctionError::AuctionEnded);
-        }
-
-        auction_state.bids.push(bid);
-        Ok(format!(
-            "ACK: Auction {} on Chain {} bid accepted.",
-            auction_id, chain_id
-        ))
     }
 
-    /// Retrieves the latest Top-of-Book (winner) transaction information of the current auction.
-    /// - Returns an empty `Vec` if no winner is set.
+    /// Requests the current auction's info (the auction ID and `AuctionInfo`).
+    pub async fn request_sale_info(
+        &self,
+        chain_id: ChainId,
+    ) -> Result<(AuctionId, AuctionInfo), AuctionError> {
+        if let Some(worker) = self.workers.get(&chain_id) {
+            worker.request_sale_info().await
+        } else {
+            Err(AuctionError::NoAuctions)
+        }
+    }
+
+    /// Requests the latest ToB(Top-of-Block) info for the current auction.
     pub async fn request_latest_tob_info(
         &self,
         chain_id: ChainId,
-        auction_id: AuctionId,
     ) -> Result<Vec<Tx>, AuctionError> {
-        // Verify if the ongoing auction ID matches
-        let ids = self.ongoing_auction_ids.read().await;
-        let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-        if *ongoing_id != auction_id {
-            return Err(AuctionError::InvalidAuctionId(auction_id));
-        }
-
-        let states = self.ongoing_auctions.read().await;
-        let auction_state = states.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-
-        if let Some(ref winner_addr) = auction_state.winner {
-            let tx_list = auction_state
-                .bids
-                .iter()
-                .find(|b| &b.bidder_addr == winner_addr)
-                .map(|b| b.tx_list.clone())
-                .unwrap_or_default();
-            Ok(tx_list)
+        if let Some(worker) = self.workers.get(&chain_id) {
+            worker.request_latest_tob_info().await
         } else {
-            Ok(Vec::new())
+            Err(AuctionError::NoAuctions)
         }
     }
 
-    /// Retrieves the full state of the current ongoing auction.
-    /// - Returns an error if no auction is ongoing or IDs do not match.
+    /// Retrieves the full internal auction state.
     pub async fn get_auction_state(
         &self,
         chain_id: ChainId,
-        auction_id: AuctionId,
-    ) -> Result<AuctionState, AuctionError> {
-        let ids = self.ongoing_auction_ids.read().await;
-        let ongoing_id = ids.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-        if *ongoing_id != auction_id {
-            return Err(AuctionError::InvalidAuctionId(auction_id));
-        }
-
-        let states = self.ongoing_auctions.read().await;
-        let auction_state = states.get(&chain_id).ok_or(AuctionError::NoAuctions)?;
-        Ok(auction_state.clone())
-    }
-
-    // ------------------------ Private Helper Functions ------------------------
-
-    fn validate_bid(&self, bid: &Bid) -> Result<(), AuctionError> {
-        self.validate_buyer_signature(bid)?;
-        self.validate_bid_amount(bid.bid_amount)
-    }
-
-    /// (Mock) Verifies the buyer's signature.
-    fn validate_buyer_signature(&self, bid: &Bid) -> Result<(), AuctionError> {
-        if !verify_signature(&bid.bidder_addr, &bid.bidder_signature) {
-            Err(AuctionError::InvalidBuyerSignature)
+    ) -> Result<crate::domain::AuctionState, AuctionError> {
+        if let Some(worker) = self.workers.get(&chain_id) {
+            worker.get_auction_state().await
         } else {
-            Ok(())
-        }
-    }
-
-    /// (Mock) Validates the bid amount.
-    fn validate_bid_amount(&self, bid_amount: u64) -> Result<(), AuctionError> {
-        if bid_amount > 1_000_000_000 {
-            Err(AuctionError::InsufficientFunds)
-        } else {
-            Ok(())
+            Err(AuctionError::NoAuctions)
         }
     }
 }

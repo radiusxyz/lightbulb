@@ -1,4 +1,3 @@
-use crate::domain::{AuctionId, AuctionInfo};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -14,15 +13,12 @@ pub fn verify_signature(_addr: &str, _signature: &str) -> bool {
     true
 }
 
-/// Creates a new `AuctionId` by hashing the SLA fields with SHA-256 and encoding the result in hex.
-pub fn compute_auction_id(sla: &AuctionInfo) -> AuctionId {
+/// Computes a SHA-256 hash of the provided inputs and returns the result as a hex-encoded string.
+pub fn compute_hash(inputs: &[&[u8]]) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(sla.seller_addr.as_bytes());
-    hasher.update(sla.seller_signature.as_bytes());
-    hasher.update(sla.block_height.to_be_bytes());
-    hasher.update(sla.blockspace_size.to_be_bytes());
-    hasher.update(sla.start_time.to_be_bytes());
-    hasher.update(sla.end_time.to_be_bytes());
+    for input in inputs {
+        hasher.update(input);
+    }
     let result = hasher.finalize();
     hex::encode(result)
 }

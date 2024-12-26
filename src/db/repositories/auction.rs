@@ -1,6 +1,6 @@
 use crate::db::pool::DbPool;
 use crate::domain::{AuctionInfo, AuctionRepository};
-use crate::utils::errors::RegistryError;
+use crate::utils::errors::DatabaseError;
 use async_trait::async_trait;
 
 pub struct SqliteAuctionRepository {
@@ -15,7 +15,7 @@ impl SqliteAuctionRepository {
 
 #[async_trait]
 impl AuctionRepository for SqliteAuctionRepository {
-    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), RegistryError> {
+    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError> {
         let query = r#"
             INSERT INTO auctions (id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -30,8 +30,7 @@ impl AuctionRepository for SqliteAuctionRepository {
             .bind(auction_info.end_time as i64)
             .bind(&auction_info.seller_signature)
             .execute(&self.db_pool.pool)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
+            .await?;
 
         Ok(())
     }
@@ -39,7 +38,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     async fn get_auction_info(
         &self,
         auction_id: &str,
-    ) -> Result<Option<AuctionInfo>, RegistryError> {
+    ) -> Result<Option<AuctionInfo>, DatabaseError> {
         let query = r#"
             SELECT id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
@@ -49,13 +48,12 @@ impl AuctionRepository for SqliteAuctionRepository {
         let auction = sqlx::query_as::<_, AuctionInfo>(query)
             .bind(auction_id)
             .fetch_optional(&self.db_pool.pool)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
+            .await?;
 
         Ok(auction)
     }
 
-    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, RegistryError> {
+    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError> {
         let query = r#"
             SELECT id, block_height, seller_addr, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
@@ -63,13 +61,12 @@ impl AuctionRepository for SqliteAuctionRepository {
 
         let auctions = sqlx::query_as::<_, AuctionInfo>(query)
             .fetch_all(&self.db_pool.pool)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
+            .await?;
 
         Ok(auctions)
     }
 
-    async fn delete_auction(&self, auction_id: &str) -> Result<(), RegistryError> {
+    async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError> {
         let query = r#"
             DELETE FROM auctions WHERE id = ?
         "#;
@@ -77,8 +74,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         sqlx::query(query)
             .bind(auction_id)
             .execute(&self.db_pool.pool)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
+            .await?;
 
         Ok(())
     }
@@ -87,36 +83,12 @@ impl AuctionRepository for SqliteAuctionRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use sqlx::SqlitePool;
-
-    /// Helper function to create an in-memory SQLite pool and apply migrations.
-    async fn setup_test_db() -> Result<DbPool, RegistryError> {
-        // In-memory SQLite database URL
-        let database_url = "sqlite:./test.db";
-
-        // Create and connect the SQLx pool
-        let pool = SqlitePool::connect(database_url)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
-
-        // Apply migrations
-        // Assumes migration files are located in the project's root "migrations" folder
-        // The sqlx::migrate! macro includes migrations at compile time
-        // Therefore, the same migrations are applied during test execution
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
-
-        // Create DbPool instance
-        Ok(DbPool { pool })
-    }
+    use crate::db::DbPool;
 
     #[tokio::test]
-    async fn test_create_and_get_auction() -> Result<(), RegistryError> {
+    async fn test_create_and_get_auction() -> Result<(), DatabaseError> {
         // Setup test database
-        let db_pool = setup_test_db().await?;
+        let db_pool = DbPool::new("sqlite::memory:").await?;
         let repo = SqliteAuctionRepository::new(db_pool.clone());
 
         // Create AuctionInfo for testing
@@ -155,9 +127,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_auctions() -> Result<(), RegistryError> {
+    async fn test_list_auctions() -> Result<(), DatabaseError> {
         // Setup test database
-        let db_pool = setup_test_db().await?;
+        let db_pool = DbPool::new("sqlite::memory:").await?;
         let repo = SqliteAuctionRepository::new(db_pool.clone());
 
         // Create and insert two AuctionInfo instances
@@ -194,9 +166,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_delete_auction() -> Result<(), RegistryError> {
+    async fn test_delete_auction() -> Result<(), DatabaseError> {
         // Setup test database
-        let db_pool = setup_test_db().await?;
+        let db_pool = DbPool::new("sqlite::memory:").await?;
         let repo = SqliteAuctionRepository::new(db_pool.clone());
 
         // Create and insert AuctionInfo
@@ -227,9 +199,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_duplicate_auction() -> Result<(), RegistryError> {
+    async fn test_create_duplicate_auction() -> Result<(), DatabaseError> {
         // Setup test database
-        let db_pool = setup_test_db().await?;
+        let db_pool = DbPool::new("sqlite::memory:").await?;
         let repo = SqliteAuctionRepository::new(db_pool.clone());
 
         // Create and insert AuctionInfo
@@ -250,13 +222,13 @@ mod tests {
         let result = repo.create_auction(auction.clone()).await;
         assert!(result.is_err());
 
-        // Check that the error is RegistryError::DatabaseError
+        // Check that the error is DatabaseError::DatabaseError
         match result {
-            Err(RegistryError::DatabaseError(msg)) => {
+            Err(DatabaseError::DatabaseError(msg)) => {
                 // SQLite returns "UNIQUE constraint failed" on duplicate keys
                 assert!(msg.contains("UNIQUE constraint failed"));
             }
-            _ => panic!("Expected RegistryError::DatabaseError due to duplicate key"),
+            _ => panic!("Expected DatabaseError::DatabaseError due to duplicate key"),
         }
 
         Ok(())

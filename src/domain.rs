@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::utils::{errors::RegistryError, helpers::compute_hash};
+use crate::utils::{errors::DatabaseError, helpers::compute_hash};
 
 /// Represents a transaction submitted by a bidder (mock).
 #[derive(Debug, Clone)]
@@ -103,11 +103,11 @@ pub type AuctionId = String;
 
 #[async_trait]
 pub trait AuctionRepository {
-    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), RegistryError>;
+    async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError>;
     async fn get_auction_info(
         &self,
         auction_id: &str,
-    ) -> Result<Option<AuctionInfo>, RegistryError>;
-    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, RegistryError>;
-    async fn delete_auction(&self, auction_id: &str) -> Result<(), RegistryError>;
+    ) -> Result<Option<AuctionInfo>, DatabaseError>;
+    async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError>;
+    async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError>;
 }

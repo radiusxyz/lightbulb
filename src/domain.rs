@@ -1,3 +1,5 @@
+use crate::utils::helpers::compute_hash;
+
 /// Represents a transaction submitted by a bidder (mock).
 #[derive(Debug, Clone)]
 pub struct Tx {
@@ -16,6 +18,7 @@ pub struct Bid {
 /// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
 #[derive(Debug, Clone)]
 pub struct AuctionInfo {
+    pub id: AuctionId,
     pub block_height: u64,
     pub seller_addr: String,
     pub blockspace_size: u64,
@@ -37,6 +40,14 @@ impl AuctionInfo {
         seller_signature: String,
     ) -> Self {
         AuctionInfo {
+            id: compute_hash(&[
+                block_height.to_be_bytes().as_ref(),
+                seller_addr.as_bytes(),
+                blockspace_size.to_be_bytes().as_ref(),
+                start_time.to_be_bytes().as_ref(),
+                end_time.to_be_bytes().as_ref(),
+                seller_signature.as_bytes(),
+            ]),
             block_height,
             seller_addr,
             blockspace_size,
@@ -68,6 +79,13 @@ impl AuctionState {
             is_ended: false,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct AuctionResult {
+    pub chain_id: ChainId,
+    pub auction_id: AuctionId,
+    pub winner: String,
 }
 
 // ------------------------ Type Aliases ------------------------

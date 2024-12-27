@@ -1,4 +1,3 @@
--- up
 CREATE TABLE IF NOT EXISTS auctions (
     id TEXT PRIMARY KEY,
     chain_id INTEGER NOT NULL,
@@ -9,6 +8,3 @@ CREATE TABLE IF NOT EXISTS auctions (
     end_time INTEGER NOT NULL,
     seller_signature TEXT NOT NULL
 );
-
--- down
-DROP TABLE IF EXISTS auctions;

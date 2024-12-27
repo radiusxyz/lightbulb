@@ -1,13 +1,15 @@
 use thiserror::Error;
 
+use crate::domain::{AuctionId, ChainId};
+
 /// A set of possible errors that can occur in the auction workflow.
 #[derive(Error, Debug)]
 pub enum AuctionError {
-    #[error("Invalid chain ID")]
-    InvalidChainId,
+    #[error("Invalid chain ID: {0}")]
+    InvalidChainId(ChainId),
 
-    #[error("Invalid auction ID")]
-    InvalidAuctionId,
+    #[error("Invalid auction ID: {0}")]
+    InvalidAuctionId(AuctionId),
 
     #[error("No auctions found for the specified chain")]
     NoAuctions,
@@ -30,6 +32,49 @@ pub enum AuctionError {
     #[error("Insufficient funds for the bid")]
     InsufficientFunds,
 
+    #[error("Auction has not started yet")]
+    AuctionNotStarted,
+
     #[error("Auction has already ended")]
     AuctionEnded,
+}
+
+/// A set of possible errors that can occur in the registry workflow.
+#[derive(Error, Debug)]
+pub enum RegistryError {
+    #[error("Invalid chain ID: {0}")]
+    InvalidChainId(ChainId),
+
+    #[error("Seller {0} is not registered on the specified chain")]
+    SellerNotRegistered(String),
+
+    #[error("Invalid seller signature")]
+    InvalidSellerSignature,
+
+    #[error("Invalid gas limit for this chain")]
+    InvalidGasLimit,
+
+    #[error("Invalid auction time settings")]
+    InvalidAuctionTime,
+
+    #[error("Chain {0} is already registered")]
+    ChainAlreadyRegistered(ChainId),
+}
+
+#[derive(Error, Debug)]
+pub enum DatabaseError {
+    #[error("Database error: {0}")]
+    DatabaseError(String),
+}
+
+impl From<sqlx::Error> for DatabaseError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::DatabaseError(err.to_string())
+    }
+}
+
+impl From<sqlx::migrate::MigrateError> for DatabaseError {
+    fn from(err: sqlx::migrate::MigrateError) -> Self {
+        Self::DatabaseError(err.to_string())
+    }
 }

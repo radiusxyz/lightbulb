@@ -7,8 +7,8 @@ use lightbulb::{
     utils::helpers::current_unix_ms,
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::test]
+async fn test_auction_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting test: test_auction_lifecycle");
 
     // 1. Setup RegistryService

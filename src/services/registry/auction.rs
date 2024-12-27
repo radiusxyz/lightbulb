@@ -12,17 +12,22 @@ use crate::{
     utils::errors::RegistryError,
 };
 
+/// `AuctionRegistry` manages queues of auction information for multiple chains.
 #[derive(Default)]
 pub struct AuctionRegistry {
+    /// Stores auction queues for each chain, with auctions ordered by priority.
     auction_queues: HashMap<ChainId, BinaryHeap<Reverse<AuctionInfo>>>,
 }
 
 impl AuctionRegistry {
+    /// Creates a new `AuctionRegistry` initialized with existing chains from the `ChainRegistry`.
+    ///
     /// TODO: Delete ChainRegistry Dependency
     pub async fn new(chain_registry: &Arc<RwLock<ChainRegistry>>) -> Self {
         let mut auction_queues = HashMap::new();
-        let chain_ids = chain_registry.read().await.get_chain_ids();
 
+        // Initialize auction queues for all registered chains.
+        let chain_ids = chain_registry.read().await.get_chain_ids();
         for chain_id in chain_ids {
             auction_queues.insert(chain_id, BinaryHeap::new());
         }
@@ -30,6 +35,9 @@ impl AuctionRegistry {
         AuctionRegistry { auction_queues }
     }
 
+    /// Removes and returns the next auction for the specified chain.
+    ///
+    /// Returns `None` if there are no auctions in the queue.
     pub fn pop_next_auction(&mut self, chain_id: ChainId) -> Option<AuctionInfo> {
         self.auction_queues
             .get_mut(&chain_id)
@@ -37,6 +45,9 @@ impl AuctionRegistry {
             .map(|reverse| reverse.0)
     }
 
+    /// Stores a new auction in the queue for the specified chain.
+    ///
+    /// Returns an error if the chain ID is invalid.
     pub fn store_auction_info(&mut self, auction_info: AuctionInfo) -> Result<(), RegistryError> {
         let queue = self
             .auction_queues
@@ -47,6 +58,9 @@ impl AuctionRegistry {
         Ok(())
     }
 
+    /// Retrieves a reference to the next auction for the specified chain without removing it.
+    ///
+    /// Returns `None` if there are no auctions in the queue.
     pub fn get_next_auction_info(&self, chain_id: ChainId) -> Option<&AuctionInfo> {
         self.auction_queues
             .get(&chain_id)
@@ -54,6 +68,9 @@ impl AuctionRegistry {
             .map(|reverse| &reverse.0)
     }
 
+    /// Registers a new chain in the auction registry.
+    ///
+    /// Returns an error if the chain is already registered.
     pub fn register_chain(&mut self, chain_id: ChainId) -> Result<(), RegistryError> {
         if self.auction_queues.contains_key(&chain_id) {
             return Err(RegistryError::ChainAlreadyRegistered(chain_id));

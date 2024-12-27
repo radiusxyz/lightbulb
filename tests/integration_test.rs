@@ -52,7 +52,7 @@ async fn test_auction_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
         "0xTestSeller".to_string(),
         500,        // blockspace_size
         now - 1000, // start_time: 1 second in the past
-        now + 2000, // end_time: 2 seconds in the future
+        now + 5000, // end_time: 2 seconds in the future
         "0xSellerSignature".to_string(),
     );
 
@@ -129,12 +129,14 @@ async fn test_auction_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
         .await;
     assert!(bid1_result.is_ok(), "Failed to submit bid1");
     println!("Bid1 submitted successfully");
+    sleep(tokio::time::Duration::from_secs(1)).await;
 
     let bid2_result = auction_manager
         .submit_bid(test_chain_id, auction_id.clone(), bid2.clone())
         .await;
     assert!(bid2_result.is_ok(), "Failed to submit bid2");
     println!("Bid2 submitted successfully");
+    sleep(tokio::time::Duration::from_secs(1)).await;
 
     let bid3_result = auction_manager
         .submit_bid(test_chain_id, auction_id.clone(), bid3.clone())
@@ -143,9 +145,9 @@ async fn test_auction_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     println!("Bid3 submitted successfully");
 
     // 8. Wait for the auction to end
-    // Since the auction ends in ~2 seconds, wait for 3 seconds to ensure it has concluded
+    // Since the auction ends in ~5 seconds, wait for 6 seconds to ensure it has concluded
     println!("Waiting for auction to end...");
-    sleep(tokio::time::Duration::from_secs(3)).await;
+    sleep(tokio::time::Duration::from_secs(6)).await;
 
     // 9. Verify that the auction has ended
     let ongoing_auction_id_after = auction_manager.get_ongoing_auction_id(test_chain_id).await;

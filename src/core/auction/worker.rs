@@ -21,7 +21,7 @@ pub struct AuctionWorker {
     /// Tracks the current `AuctionState`. If there is no active auction, it is `None`.
     state: Arc<RwLock<Option<AuctionState>>>,
 
-    /// Sender for notifying the manager when an auction ends
+    /// Sender for notifying the manager when an auction ends or is processing
     result_sender: Sender<WorkerMessage>,
 }
 
@@ -54,7 +54,11 @@ impl AuctionWorker {
     // ------------------------------------------------------------------------
 
     /// Starts a new auction. Overwrites any existing auction state if one was already in progress.
-    pub async fn start_auction(&self, auction_id: AuctionId, info: AuctionInfo) {
+    pub async fn start_auction(
+        &self,
+        auction_id: AuctionId,
+        info: AuctionInfo,
+    ) -> Result<(), AuctionError> {
         let mut guard = self.state.write().await;
         let new_state = AuctionState::new(info);
         println!(
@@ -62,6 +66,7 @@ impl AuctionWorker {
             self.chain_id, auction_id
         );
         *guard = Some(new_state);
+        Ok(())
     }
 
     /// Submits a bid. Returns an error if the auction is already ended or does not exist.
@@ -77,6 +82,9 @@ impl AuctionWorker {
             }
 
             // Potential place to check if the provided auction_id matches the current state's ID
+            if auction_state.auction_info.id != auction_id {
+                return Err(AuctionError::InvalidAuctionId(auction_id));
+            }
 
             auction_state.bids.push(bid);
 
@@ -164,15 +172,8 @@ impl AuctionWorker {
                 }
 
                 let auction_id = info.id.clone();
-                let result = WorkerMessage {
-                    message_type: WorkerMessageType::AuctionProcessing,
-                    chain_id: self.chain_id,
-                    auction_id,
-                };
-                self.result_sender
-                    .send(result)
-                    .await
-                    .map_err(|e| format!("Failed to send auction result: {}", e))?;
+                self.send_worker_message(WorkerMessageType::AuctionEnded, auction_id)
+                    .await?;
 
                 return Ok(());
             }
@@ -185,7 +186,30 @@ impl AuctionWorker {
                 auction_state.highest_bid = top_bid.bid_amount;
                 auction_state.winner = Some(top_bid.bidder_addr.clone());
             }
+            self.send_worker_message(WorkerMessageType::AuctionProcessing, info.id.clone())
+                .await?;
         }
         Ok(())
+    }
+
+    // ------------------------------------------------------------------------
+    // Helper methods
+    // ------------------------------------------------------------------------
+
+    /// Sends a `WorkerMessage` to the manager.
+    async fn send_worker_message(
+        &self,
+        message_type: WorkerMessageType,
+        auction_id: AuctionId,
+    ) -> Result<(), String> {
+        let message = WorkerMessage {
+            message_type,
+            chain_id: self.chain_id,
+            auction_id,
+        };
+        self.result_sender
+            .send(message)
+            .await
+            .map_err(|e| format!("Failed to send auction message: {}", e))
     }
 }

@@ -117,12 +117,14 @@ pub struct AuctionResult {
     pub winner: String,
 }
 
+#[derive(Debug)]
 pub struct WorkerMessage {
     pub message_type: WorkerMessageType,
     pub chain_id: ChainId,
     pub auction_id: AuctionId,
 }
 
+#[derive(Debug)]
 pub enum WorkerMessageType {
     AuctionEnded,
     AuctionProcessing,

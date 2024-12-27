@@ -203,6 +203,10 @@ impl AuctionManager {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // Getters
+    // ------------------------------------------------------------------------
+
     /// Retrieves the ongoing auction ID for a given chain.
     pub async fn get_ongoing_auction_id(&self, chain_id: ChainId) -> Option<AuctionId> {
         let ongoing_guard = self.ongoing_auctions.read().await;
@@ -218,6 +222,10 @@ impl AuctionManager {
             .map(|(chain_id, auction_info)| (*chain_id, auction_info.id.clone()))
             .collect()
     }
+
+    // ------------------------------------------------------------------------
+    // Methods for communicating with AuctionWorkers
+    // ------------------------------------------------------------------------
 
     /// For submitting a bid. We assume validation (e.g., signature checks) is already done at the `AuctionRegistry` level.
     pub async fn submit_bid(

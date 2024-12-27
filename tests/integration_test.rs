@@ -53,6 +53,9 @@ async fn test_auction_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let bid_service = BidService::new(Arc::clone(&auction_manager), flush_intervals).await;
     println!("BidService created");
 
+    bid_service.start_tasks().await;
+    println!("BidService tasks started");
+
     // 3. Create AuctionInfo with start_time in the past and end_time shortly in the future
     let now = current_unix_ms();
     let auction_info = AuctionInfo::new(

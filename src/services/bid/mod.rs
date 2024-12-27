@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::{
     sync::{Mutex, RwLock},
+    task::JoinHandle,
     time::{self, Duration},
 };
 
@@ -47,28 +48,23 @@ impl BidService {
         }
 
         // Create the BidService instance.
-        let service = BidService {
+        BidService {
             bid_buffer,
             flush_intervals,
             auction_manager,
-        };
-
-        // Start flush tasks for chains.
-        let service_clone = service.clone();
-        tokio::spawn(async move {
-            service_clone.spawn_flush_tasks().await;
-        });
-
-        service
+        }
     }
 
-    /// Starts background tasks to flush bids at regular intervals.
-    async fn spawn_flush_tasks(&self) {
-        // Clone required data for spawning tasks.
+    /// Starts background tasks for bid flushing.
+    ///
+    /// Returns a vector of `JoinHandle`s representing the spawned tasks.
+    pub async fn start_tasks(&self) -> Vec<JoinHandle<()>> {
         let flush_intervals = self.flush_intervals.read().await.clone();
         let bid_buffer = Arc::clone(&self.bid_buffer);
         let auction_manager = Arc::clone(&self.auction_manager);
         let service = self.clone();
+
+        let mut handles: Vec<JoinHandle<()>> = Vec::new();
 
         // Spawn a task for each chain's flush interval.
         for (chain_id, interval) in flush_intervals {
@@ -76,7 +72,7 @@ impl BidService {
             let auction_manager_clone = Arc::clone(&auction_manager);
             let service_clone = service.clone();
 
-            tokio::spawn(async move {
+            let handle = tokio::spawn(async move {
                 loop {
                     time::sleep(interval).await;
 
@@ -88,7 +84,11 @@ impl BidService {
                     }
                 }
             });
+
+            handles.push(handle);
         }
+
+        handles
     }
 
     /// Stores a bid for a specific chain and auction.

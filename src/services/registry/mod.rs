@@ -1,24 +1,26 @@
 pub mod auction;
 pub mod chain;
 
+use std::sync::Arc;
+
 pub use auction::AuctionRegistry;
 pub use chain::ChainRegistry;
-
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::domain::{AuctionInfo, ChainId, ChainInfo};
-use crate::utils::errors::RegistryError;
+use crate::{
+    domain::{AuctionInfo, ChainId, ChainInfo},
+    utils::{errors::RegistryError, types::ArcRwLock},
+};
 
 pub struct RegistryService {
-    auction_registry: Arc<RwLock<AuctionRegistry>>,
-    chain_registry: Arc<RwLock<ChainRegistry>>,
+    auction_registry: ArcRwLock<AuctionRegistry>,
+    chain_registry: ArcRwLock<ChainRegistry>,
 }
 
 impl RegistryService {
     pub fn new(
-        auction_registry: Arc<RwLock<AuctionRegistry>>,
-        chain_registry: Arc<RwLock<ChainRegistry>>,
+        auction_registry: ArcRwLock<AuctionRegistry>,
+        chain_registry: ArcRwLock<ChainRegistry>,
     ) -> Self {
         RegistryService {
             auction_registry,
@@ -26,14 +28,14 @@ impl RegistryService {
         }
     }
 
-    pub async fn create_registry() -> (Arc<RwLock<AuctionRegistry>>, Arc<RwLock<ChainRegistry>>) {
-        let chain_registry = Arc::new(RwLock::new(ChainRegistry::new()));
+    pub async fn create_registry() -> (ArcRwLock<AuctionRegistry>, ArcRwLock<ChainRegistry>) {
+        let chain_registry = Arc::new(RwLock::new(ChainRegistry::default()));
         let auction_registry = Arc::new(RwLock::new(AuctionRegistry::new(&chain_registry).await));
 
         (auction_registry, chain_registry)
     }
 
-    pub fn get_auction_registry(&self) -> Arc<RwLock<AuctionRegistry>> {
+    pub fn get_auction_registry(&self) -> ArcRwLock<AuctionRegistry> {
         self.auction_registry.clone()
     }
 

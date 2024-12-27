@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 
-use crate::db::pool::DbPool;
-use crate::domain::{AuctionInfo, AuctionRepository};
-use crate::utils::errors::DatabaseError;
+use crate::{
+    db::pool::DbPool,
+    domain::{AuctionInfo, AuctionRepository},
+    utils::errors::DatabaseError,
+};
 
 pub struct SqliteAuctionRepository {
     db_pool: DbPool,

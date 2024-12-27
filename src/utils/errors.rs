@@ -62,6 +62,53 @@ pub enum RegistryError {
 }
 
 #[derive(Error, Debug)]
+pub enum BidError {
+    #[error("Invalid chain ID: {0}")]
+    InvalidChainId(ChainId),
+
+    #[error("Invalid auction ID: {0}")]
+    InvalidAuctionId(AuctionId),
+
+    #[error("No auctions found for the specified chain")]
+    NoAuctions,
+
+    #[error("Seller is not registered on the specified chain")]
+    SellerNotRegistered,
+
+    #[error("Invalid seller signature")]
+    InvalidSellerSignature,
+
+    #[error("Invalid gas limit for this chain")]
+    InvalidGasLimit,
+
+    #[error("Invalid auction time settings")]
+    InvalidAuctionTime,
+
+    #[error("Invalid buyer signature")]
+    InvalidBuyerSignature,
+
+    #[error("Insufficient funds for the bid")]
+    InsufficientFunds,
+
+    #[error("Auction Error")]
+    AuctionError,
+}
+
+impl From<AuctionError> for BidError {
+    fn from(err: AuctionError) -> Self {
+        match err {
+            AuctionError::InvalidChainId(chain_id) => BidError::InvalidChainId(chain_id),
+            AuctionError::InvalidAuctionId(auction_id) => BidError::InvalidAuctionId(auction_id),
+            AuctionError::NoAuctions => BidError::NoAuctions,
+            AuctionError::InvalidAuctionTime => BidError::InvalidAuctionTime,
+            AuctionError::InvalidBuyerSignature => BidError::InvalidBuyerSignature,
+            AuctionError::InsufficientFunds => BidError::InsufficientFunds,
+            _ => BidError::AuctionError,
+        }
+    }
+}
+
+#[derive(Error, Debug)]
 pub enum DatabaseError {
     #[error("Database error: {0}")]
     DatabaseError(String),

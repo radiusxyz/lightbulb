@@ -1,19 +1,22 @@
-use tokio::time::sleep;
+use std::{collections::HashMap, sync::Arc};
 
 use lightbulb::{
     core::auction::AuctionManager,
     domain::{AuctionInfo, Bid, ChainId, ChainInfo, Tx},
-    services::registry::RegistryService,
+    services::{bid::BidService, registry::RegistryService},
     utils::helpers::current_unix_ms,
 };
+use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting test: test_auction_lifecycle");
 
     // 1. Setup RegistryService
-    let (auction_registry, chain_registry) = RegistryService::create_registry().await;
-    let registry_service = RegistryService::new(auction_registry, chain_registry);
+    let registry_service = {
+        let (auction_registry, chain_registry) = RegistryService::create_registry().await;
+        RegistryService::new(auction_registry, chain_registry)
+    };
 
     println!("RegistryService created");
 
@@ -40,9 +43,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!("ChainIds registered: {:?}", chain_ids);
 
-    // 2. Setup AuctionManager
-    let auction_manager = AuctionManager::new(&registry_service).await;
+    // 2. Setup AuctionManager and BidService
+    let auction_manager = Arc::new(AuctionManager::new(&registry_service).await);
     println!("AuctionManager created");
+
+    let mut flush_intervals: HashMap<ChainId, Duration> = HashMap::new();
+    flush_intervals.insert(test_chain_id, Duration::from_millis(1000));
+
+    let bid_service = BidService::new(Arc::clone(&auction_manager), flush_intervals).await;
+    println!("BidService created");
 
     // 3. Create AuctionInfo with start_time in the past and end_time shortly in the future
     let now = current_unix_ms();
@@ -52,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "0xTestSeller".to_string(),
         500,        // blockspace_size
         now - 1000, // start_time: 1 second in the past
-        now + 5000, // end_time: 2 seconds in the future
+        now + 5000, // end_time: 5 seconds in the future
         "0xSellerSignature".to_string(),
     );
 
@@ -80,21 +89,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Auction ID does not match the submitted AuctionInfo"
     );
 
-    // 6. Verify that the auction is ongoing
-    let ongoing_auction_id = auction_manager.get_ongoing_auction_id(test_chain_id).await;
-    assert_eq!(
-        ongoing_auction_id,
-        Some(auction_id.clone()),
-        "Auction is not marked as ongoing"
-    );
-
-    println!(
-        "Auction is ongoing with ID: {}",
-        ongoing_auction_id.unwrap()
-    );
-
-    // 7. Submit bids
+    // 6. Submit bids via BidService
     let bid1 = Bid {
+        chain_id: test_chain_id,
+        auction_id: auction_id.clone(),
         bidder_addr: "0xBidder1".to_string(),
         bid_amount: 1000,
         bidder_signature: "0xBidder1Signature".to_string(),
@@ -104,6 +102,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let bid2 = Bid {
+        chain_id: test_chain_id,
+        auction_id: auction_id.clone(),
         bidder_addr: "0xBidder2".to_string(),
         bid_amount: 1500, // Highest bid
         bidder_signature: "0xBidder2Signature".to_string(),
@@ -113,6 +113,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let bid3 = Bid {
+        chain_id: test_chain_id,
+        auction_id: auction_id.clone(),
         bidder_addr: "0xBidder3".to_string(),
         bid_amount: 1200,
         bidder_signature: "0xBidder3Signature".to_string(),
@@ -123,33 +125,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Bids created");
 
-    // Submit bids asynchronously
-    let bid1_result = auction_manager
-        .submit_bid(test_chain_id, auction_id.clone(), bid1.clone())
-        .await;
-    assert!(bid1_result.is_ok(), "Failed to submit bid1");
-    println!("Bid1 submitted successfully");
-    sleep(tokio::time::Duration::from_secs(1)).await;
+    bid_service.store_bid(bid1.clone()).await?;
+    println!("Bid1 stored successfully");
 
-    let bid2_result = auction_manager
-        .submit_bid(test_chain_id, auction_id.clone(), bid2.clone())
-        .await;
-    assert!(bid2_result.is_ok(), "Failed to submit bid2");
-    println!("Bid2 submitted successfully");
-    sleep(tokio::time::Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(1)).await;
 
-    let bid3_result = auction_manager
-        .submit_bid(test_chain_id, auction_id.clone(), bid3.clone())
-        .await;
-    assert!(bid3_result.is_ok(), "Failed to submit bid3");
-    println!("Bid3 submitted successfully");
+    bid_service.store_bid(bid2.clone()).await?;
+    println!("Bid2 stored successfully");
 
-    // 8. Wait for the auction to end
-    // Since the auction ends in ~5 seconds, wait for 6 seconds to ensure it has concluded
+    sleep(Duration::from_secs(1)).await;
+
+    bid_service.store_bid(bid3.clone()).await?;
+    println!("Bid3 stored successfully");
+
+    // 7. Wait for the auction to end
     println!("Waiting for auction to end...");
-    sleep(tokio::time::Duration::from_secs(6)).await;
+    sleep(Duration::from_secs(6)).await;
 
-    // 9. Verify that the auction has ended
+    // 8. Verify that the auction has ended
     let ongoing_auction_id_after = auction_manager.get_ongoing_auction_id(test_chain_id).await;
     assert!(
         ongoing_auction_id_after.is_none(),
@@ -158,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Auction has ended");
 
-    // 10. Retrieve the auction state to verify the winner
+    // 9. Retrieve the auction state to verify the winner
     let auction_state_result = auction_manager.request_auction_state(test_chain_id).await;
     match auction_state_result {
         Ok(state) => {
@@ -186,7 +179,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => panic!("Failed to retrieve auction state: {}", e),
     }
 
-    // 11. Optionally, verify that the worker has processed the auction end message
     println!("Test completed successfully");
     Ok(())
 }

@@ -6,7 +6,7 @@ use tokio::{
 };
 
 use crate::{
-    domain::{
+    core::domain::{
         AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType,
     },
     utils::{errors::AuctionError, helpers::current_unix_ms, types::ArcRwLock},

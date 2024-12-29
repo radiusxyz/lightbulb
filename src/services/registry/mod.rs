@@ -8,7 +8,7 @@ pub use chain::ChainRegistry;
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{AuctionInfo, ChainId, ChainInfo},
+    core::domain::{AuctionInfo, ChainId, ChainInfo},
     utils::{errors::RegistryError, types::ArcRwLock},
 };
 

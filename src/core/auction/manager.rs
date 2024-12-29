@@ -6,8 +6,13 @@ use tokio::{
 };
 
 use crate::{
-    core::auction::AuctionWorker,
-    domain::{AuctionId, AuctionInfo, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType},
+    core::{
+        auction::AuctionWorker,
+        domain::{
+            AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage,
+            WorkerMessageType,
+        },
+    },
     services::registry::{AuctionRegistry, RegistryService},
     utils::{
         errors::AuctionError,
@@ -282,7 +287,7 @@ impl AuctionManager {
     pub async fn request_auction_state(
         &self,
         chain_id: ChainId,
-    ) -> Result<crate::domain::AuctionState, AuctionError> {
+    ) -> Result<AuctionState, AuctionError> {
         let worker_opt = {
             let workers_guard = self.workers.read().await;
             workers_guard.get(&chain_id).cloned()

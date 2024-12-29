@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    domain::{ChainId, ChainInfo},
+    core::domain::{ChainId, ChainInfo},
     utils::errors::RegistryError,
 };
 

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::domain::{AuctionId, ChainId};
+use crate::core::domain::{AuctionId, ChainId};
 
 /// A set of possible errors that can occur in the auction workflow.
 #[derive(Error, Debug)]

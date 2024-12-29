@@ -7,8 +7,10 @@ use tokio::{
 };
 
 use crate::{
-    core::AuctionManager,
-    domain::{AuctionId, Bid, ChainId},
+    core::{
+        domain::{AuctionId, Bid, ChainId},
+        AuctionManager,
+    },
     utils::{
         errors::{AuctionError, BidError},
         types::{ArcMutexHashMap, ArcRwLockHashMap},

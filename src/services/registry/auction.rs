@@ -7,7 +7,7 @@ use std::{
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{AuctionInfo, ChainId},
+    core::domain::{AuctionInfo, ChainId},
     services::registry::ChainRegistry,
     utils::errors::RegistryError,
 };

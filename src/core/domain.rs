@@ -11,6 +11,8 @@ pub struct Tx {
 /// Represents a bid submitted by a buyer, including bidder address, amount, signature, and transaction list.
 #[derive(Debug, Clone)]
 pub struct Bid {
+    pub chain_id: ChainId,
+    pub auction_id: AuctionId,
     pub bidder_addr: String,
     pub bid_amount: u64,
     pub bidder_signature: String,

@@ -1,8 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use lightbulb::{
-    core::auction::AuctionManager,
-    domain::{AuctionInfo, Bid, ChainId, ChainInfo, Tx},
+    core::{
+        auction::AuctionManager,
+        domain::{AuctionInfo, Bid, ChainId, ChainInfo, Tx},
+    },
     services::{bid::BidService, registry::RegistryService},
     utils::helpers::current_unix_ms,
 };

@@ -100,10 +100,10 @@ impl BidService {
 
         {
             // Acquire a read lock for the bid buffer.
-            let buffer_lock = self.bid_buffer.read().await;
+            let buffer_guard = self.bid_buffer.read().await;
 
             // Check if the chain exists in the buffer.
-            if let Some(chain_buffer_mutex) = buffer_lock.get(&chain_id) {
+            if let Some(chain_buffer_mutex) = buffer_guard.get(&chain_id) {
                 let mut chain_buffer = chain_buffer_mutex.lock().await;
 
                 // Add the bid to the auction's buffer.
@@ -135,8 +135,8 @@ impl BidService {
 
         // Collect and remove bids associated with the ongoing auction.
         let bids_to_flush = {
-            let buffer_lock = bid_buffer.read().await;
-            let chain_buffer_mutex = match buffer_lock.get(&chain_id) {
+            let buffer_guard = bid_buffer.read().await;
+            let chain_buffer_mutex = match buffer_guard.get(&chain_id) {
                 Some(mutex) => mutex,
                 None => return Err(BidError::InvalidChainId(chain_id)),
             };
@@ -158,14 +158,14 @@ impl BidService {
     pub async fn add_chain(&self, chain_id: ChainId, flush_interval_ms: u64) {
         {
             // Update the flush interval for the new chain.
-            let mut intervals = self.flush_intervals.write().await;
-            intervals.insert(chain_id, Duration::from_millis(flush_interval_ms));
+            let mut intervals_guard = self.flush_intervals.write().await;
+            intervals_guard.insert(chain_id, Duration::from_millis(flush_interval_ms));
         }
 
         {
             // Initialize the bid buffer for the new chain.
-            let mut buffer_lock = self.bid_buffer.write().await;
-            buffer_lock
+            let mut buffer_guard = self.bid_buffer.write().await;
+            buffer_guard
                 .entry(chain_id)
                 .or_insert_with(|| Arc::new(Mutex::new(HashMap::new())));
         }

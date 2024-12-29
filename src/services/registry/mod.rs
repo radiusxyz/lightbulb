@@ -60,14 +60,14 @@ impl RegistryService {
     ) -> Result<(), RegistryError> {
         {
             // Update the chain registry with the new chain info.
-            let mut guard = self.chain_registry.write().await;
-            guard.register_chain(chain_id, chain_info)?;
+            let mut chain_registry_guard = self.chain_registry.write().await;
+            chain_registry_guard.register_chain(chain_id, chain_info)?;
         }
 
         {
             // Notify the auction registry about the new chain.
-            let mut auction_registry = self.auction_registry.write().await;
-            auction_registry.register_chain(chain_id)
+            let mut auction_registry_guard = self.auction_registry.write().await;
+            auction_registry_guard.register_chain(chain_id)
         }
     }
 

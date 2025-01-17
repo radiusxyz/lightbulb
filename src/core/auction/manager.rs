@@ -5,26 +5,37 @@ use tokio::{
     task::JoinHandle,
 };
 
-use crate::core::auction::AuctionWorker;
-use crate::domain::{AuctionId, AuctionInfo, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType};
-use crate::services::registry::{AuctionRegistry, RegistryService};
-use crate::utils::{errors::AuctionError, helpers::current_unix_ms};
+use crate::{
+    core::{
+        auction::AuctionWorker,
+        domain::{
+            AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage,
+            WorkerMessageType,
+        },
+    },
+    services::registry::{AuctionRegistry, RegistryService},
+    utils::{
+        errors::AuctionError,
+        helpers::current_unix_ms,
+        types::{ArcRwLock, ArcRwLockHashMap},
+    },
+};
 
 /// `AuctionManager` is responsible for scheduling auctions (e.g., starting new auctions, handling bids, requests for information).
 /// The actual state of an auction (`AuctionState`) is fully managed inside `AuctionWorker`.
 #[derive(Clone)]
 pub struct AuctionManager {
     /// Manages registration (scheduling) and validation logic for auctions
-    pub auction_registry: Arc<RwLock<AuctionRegistry>>,
+    pub auction_registry: ArcRwLock<AuctionRegistry>,
 
     /// Maps a `ChainId` to the `AuctionInfo` of the ongoing auction (if any)
-    pub ongoing_auctions: Arc<RwLock<HashMap<ChainId, AuctionInfo>>>,
+    pub ongoing_auctions: ArcRwLockHashMap<ChainId, AuctionInfo>,
 
     /// Maps a `ChainId` to its dedicated `AuctionWorker`
-    pub workers: Arc<RwLock<HashMap<ChainId, Arc<AuctionWorker>>>>,
+    pub workers: ArcRwLockHashMap<ChainId, Arc<AuctionWorker>>,
 
     /// Maps a `ChainId` to a worker's background task handle
-    pub worker_handles: Arc<RwLock<HashMap<ChainId, JoinHandle<()>>>>,
+    pub worker_handles: ArcRwLockHashMap<ChainId, JoinHandle<()>>,
 
     /// Used by a worker to send a `WorkerMessage` when an auction event occurs
     pub message_sender: mpsc::Sender<WorkerMessage>,
@@ -34,6 +45,7 @@ impl AuctionManager {
     /// Creates a new `AuctionManager`.
     /// If desired, you could spawn a worker for every `ChainId` at creation time,
     /// or you can spawn a worker only when a new `ChainId` is introduced.
+    /// TODO: Delete RegistryService dependency
     pub async fn new(registry_service: &RegistryService) -> Self {
         let (message_sender, mut message_receiver) = mpsc::channel(100);
 
@@ -49,6 +61,7 @@ impl AuctionManager {
         };
 
         // Clone the manager for the background task
+        // This can be implemented with concurrency with tokio::spawn and a semaphore
         let manager_clone = manager.clone();
         tokio::spawn(async move {
             while let Some(result) = message_receiver.recv().await {
@@ -195,6 +208,10 @@ impl AuctionManager {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // Getters
+    // ------------------------------------------------------------------------
+
     /// Retrieves the ongoing auction ID for a given chain.
     pub async fn get_ongoing_auction_id(&self, chain_id: ChainId) -> Option<AuctionId> {
         let ongoing_guard = self.ongoing_auctions.read().await;
@@ -202,6 +219,18 @@ impl AuctionManager {
             .get(&chain_id)
             .map(|auction_info| auction_info.id.clone())
     }
+
+    pub async fn get_all_ongoing_auction_ids(&self) -> HashMap<ChainId, AuctionId> {
+        let ongoing_guard = self.ongoing_auctions.read().await;
+        ongoing_guard
+            .iter()
+            .map(|(chain_id, auction_info)| (*chain_id, auction_info.id.clone()))
+            .collect()
+    }
+
+    // ------------------------------------------------------------------------
+    // Methods for communicating with AuctionWorkers
+    // ------------------------------------------------------------------------
 
     /// For submitting a bid. We assume validation (e.g., signature checks) is already done at the `AuctionRegistry` level.
     pub async fn submit_bid(
@@ -217,6 +246,24 @@ impl AuctionManager {
 
         if let Some(worker) = worker_opt {
             worker.submit_bid(auction_id, bid).await
+        } else {
+            Err(AuctionError::NoAuctions)
+        }
+    }
+
+    pub async fn submit_bid_batch(
+        &self,
+        chain_id: ChainId,
+        auction_id: AuctionId,
+        bids: Vec<Bid>,
+    ) -> Result<(), AuctionError> {
+        let worker_opt = {
+            let workers_guard = self.workers.read().await;
+            workers_guard.get(&chain_id).cloned()
+        };
+
+        if let Some(worker) = worker_opt {
+            worker.submit_bid_batch(auction_id, bids).await
         } else {
             Err(AuctionError::NoAuctions)
         }
@@ -240,7 +287,7 @@ impl AuctionManager {
     pub async fn request_auction_state(
         &self,
         chain_id: ChainId,
-    ) -> Result<crate::domain::AuctionState, AuctionError> {
+    ) -> Result<AuctionState, AuctionError> {
         let worker_opt = {
             let workers_guard = self.workers.read().await;
             workers_guard.get(&chain_id).cloned()

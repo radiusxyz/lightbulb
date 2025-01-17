@@ -1,14 +1,19 @@
 use async_trait::async_trait;
 
-use crate::db::pool::DbPool;
-use crate::domain::{AuctionInfo, AuctionRepository};
-use crate::utils::errors::DatabaseError;
+use crate::{
+    core::domain::{AuctionInfo, AuctionRepository},
+    db::pool::DbPool,
+    utils::errors::DatabaseError,
+};
 
+/// `SqliteAuctionRepository` provides SQLite-based implementations for managing auction data.
 pub struct SqliteAuctionRepository {
+    /// Database connection pool.
     db_pool: DbPool,
 }
 
 impl SqliteAuctionRepository {
+    /// Creates a new instance of `SqliteAuctionRepository`.
     pub fn new(db_pool: DbPool) -> Self {
         SqliteAuctionRepository { db_pool }
     }
@@ -16,6 +21,7 @@ impl SqliteAuctionRepository {
 
 #[async_trait]
 impl AuctionRepository for SqliteAuctionRepository {
+    /// Inserts a new auction into the database.
     async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError> {
         let query = r#"
             INSERT INTO auctions (id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature)
@@ -37,6 +43,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         Ok(())
     }
 
+    /// Retrieves auction information by ID.
     async fn get_auction_info(
         &self,
         auction_id: &str,
@@ -55,6 +62,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         Ok(auction)
     }
 
+    /// Lists all auctions stored in the database.
     async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError> {
         let query = r#"
             SELECT id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
@@ -68,6 +76,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         Ok(auctions)
     }
 
+    /// Deletes an auction by ID.
     async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError> {
         let query = r#"
             DELETE FROM auctions WHERE id = ?

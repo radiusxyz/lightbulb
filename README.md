@@ -1,10 +1,10 @@
 # Lightbulb
 
-## Description
+## Introduction
 
 Lightbulb is a Secure Block Building System built in Rust. Block Sequencers can sell their blocks to the Lightbulb. The Lightbulb will then open auctions for the blocks. Buyers who want to buy the block space can bid on the blocks.
 
-The Lightbulb will then select the order of the blocks based on the bids. This process is executed in the Trusted Execution Environment (TEE) to ensure that the process is secure and tamper-proof.
+The Lightbulb will then select the order of the blocks based on the bids and the verifiable ordering rules. This process is executed in the Trusted Execution Environment (TEE) to ensure that the process is secure and tamper-proof. Refer to [lightbulb-tdx repository](https://github.com/radiusxyz/lightbulb-tdx) for the implementation of the TEE part.
 
 ## Architecture
 

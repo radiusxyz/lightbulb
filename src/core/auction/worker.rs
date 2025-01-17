@@ -5,10 +5,12 @@ use tokio::{
     time::{sleep, Duration},
 };
 
-use crate::domain::{
-    AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType,
+use crate::{
+    core::domain::{
+        AuctionId, AuctionInfo, AuctionState, Bid, ChainId, Tx, WorkerMessage, WorkerMessageType,
+    },
+    utils::{errors::AuctionError, helpers::current_unix_ms, types::ArcRwLock},
 };
-use crate::utils::{errors::AuctionError, helpers::current_unix_ms};
 
 /// `AuctionWorker` manages the state (`AuctionState`) for a specific `ChainId`.
 /// If there is no ongoing auction, it remains idle. When an auction starts,
@@ -19,7 +21,7 @@ pub struct AuctionWorker {
     chain_id: ChainId,
 
     /// Tracks the current `AuctionState`. If there is no active auction, it is `None`.
-    state: Arc<RwLock<Option<AuctionState>>>,
+    state: ArcRwLock<Option<AuctionState>>,
 
     /// Sender for notifying the manager when an auction ends or is processing
     result_sender: Sender<WorkerMessage>,
@@ -92,6 +94,30 @@ impl AuctionWorker {
                 "[Worker {}] ACK: Auction {} bid accepted.",
                 self.chain_id, auction_id
             ))
+        } else {
+            Err(AuctionError::NoAuctions)
+        }
+    }
+
+    pub async fn submit_bid_batch(
+        &self,
+        auction_id: AuctionId,
+        bids: Vec<Bid>,
+    ) -> Result<(), AuctionError> {
+        let mut guard = self.state.write().await;
+        if let Some(ref mut auction_state) = *guard {
+            if auction_state.is_ended {
+                return Err(AuctionError::AuctionEnded);
+            }
+
+            // Potential place to check if the provided auction_id matches the current state's ID
+            if auction_state.auction_info.id != auction_id {
+                return Err(AuctionError::InvalidAuctionId(auction_id));
+            }
+
+            auction_state.bids.extend(bids);
+
+            Ok(())
         } else {
             Err(AuctionError::NoAuctions)
         }

@@ -1,9 +1,11 @@
 pub mod auction;
+pub mod bid;
 pub mod chain;
 
 use std::sync::Arc;
 
 pub use auction::AuctionRegistry;
+pub use bid::BidRegistry;
 pub use chain::ChainRegistry;
 use tokio::sync::RwLock;
 

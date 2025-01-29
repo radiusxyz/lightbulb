@@ -37,6 +37,12 @@ pub enum AuctionError {
 
     #[error("Auction has already ended")]
     AuctionEnded,
+
+    #[error("Auction Not Added")]
+    AuctionNotAdded,
+
+    #[error("Grpc Error: {0}")]
+    GrpcError(String),
 }
 
 /// A set of possible errors that can occur in the registry workflow.

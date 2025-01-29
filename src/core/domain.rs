@@ -3,17 +3,15 @@ use async_trait::async_trait;
 use crate::utils::{errors::DatabaseError, helpers::compute_hash};
 
 /// Represents a transaction submitted by a bidder (mock).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tx {
     pub tx_data: String,
 }
 
 /// Represents a bid submitted by a buyer, including bidder address, amount, signature, and transaction list.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bid {
-    pub chain_id: ChainId,
-    pub auction_id: AuctionId,
-    pub bidder_addr: String,
+    pub bidder_address: String,
     pub bid_amount: u64,
     pub bidder_signature: String,
     pub tx_list: Vec<Tx>,
@@ -27,7 +25,7 @@ pub struct ChainInfo {
 /// Represents a Service Level Agreement (AuctionInfo) provided by the seller, which is the basis for an auction.
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct AuctionInfo {
-    pub id: AuctionId,
+    pub auction_id: AuctionId,
     pub chain_id: ChainId,
     pub block_number: u64,
     pub seller_address: String,
@@ -49,7 +47,7 @@ impl AuctionInfo {
         seller_signature: String,
     ) -> Self {
         AuctionInfo {
-            id: compute_hash(&[
+            auction_id: compute_hash(&[
                 chain_id.to_be_bytes().as_ref(),
                 block_number.to_be_bytes().as_ref(),
                 seller_address.as_bytes(),
@@ -93,9 +91,8 @@ impl Eq for AuctionInfo {}
 #[derive(Debug, Clone)]
 pub struct AuctionState {
     pub auction_info: AuctionInfo,
-    pub highest_bid: u64,
-    pub winner: Option<String>,
-    pub bids: Vec<Bid>,
+    pub bid_list: Vec<Bid>,
+    pub sorted_tx_list: Vec<Tx>,
     pub is_ended: bool,
 }
 
@@ -104,9 +101,8 @@ impl AuctionState {
     pub fn new(auction_info: AuctionInfo) -> Self {
         AuctionState {
             auction_info,
-            highest_bid: 0,
-            winner: None,
-            bids: Vec::new(),
+            bid_list: Vec::new(),
+            sorted_tx_list: Vec::new(),
             is_ended: false,
         }
     }

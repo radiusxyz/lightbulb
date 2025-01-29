@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package auction;
+
+option go_package = "github.com/radiusxyz/lightbulb-tdx/proto/auction";
+
+// AuctionService defines the RPC methods for auction operations.
+service AuctionService {
+  // Initiates a new auction.
+  rpc AddAuction(AddAuctionRequest) returns (AddAuctionResponse);
+
+  // Submits multiple bids for a specific auction.
+  rpc SubmitBids(SubmitBidsRequest) returns (SubmitBidsResponse);
+
+  // Retrieves detailed information about a specific auction.
+  rpc GetAuctionInfo(GetAuctionInfoRequest) returns (GetAuctionInfoResponse);
+
+  // Retrieves the Tx list of the latest block.
+  rpc GetLatestTob(GetLatestTobRequest) returns (GetLatestTobResponse);
+
+  // Retrieves the current state of an auction.
+  rpc GetAuctionState(GetAuctionStateRequest) returns (GetAuctionStateResponse);
+}
+
+// Request to start a new auction.
+message AddAuctionRequest {
+  AuctionInfo auction_info = 1;   // The details of the auction to start.
+}
+
+// Response for starting an auction.
+message AddAuctionResponse {
+  bool success = 1;   // Whether the auction was successfully started.
+  string message = 2; // Additional information about the operation.
+}
+
+// Request to submit multiple bids for an auction.
+message SubmitBidsRequest {
+  int64 chain_id = 1;        // The unique identifier of the chain.
+  string auction_id = 2;     // The unique identifier of the auction.
+  repeated Bid bid_list = 3; // The list of bids to submit.
+}
+
+// Response for submitting multiple bids.
+message SubmitBidsResponse {
+  bool success = 1;   // Whether the bids were successfully submitted.
+  string message = 2; // Additional information about the operation.
+}
+
+// Request for auction information.
+message GetAuctionInfoRequest {
+  int64 chain_id = 1;   // The unique identifier of the chain.
+  string auction_id = 2; // The unique identifier of the auction.
+}
+
+// Response containing auction information.
+message GetAuctionInfoResponse {
+  AuctionInfo auction_info = 1; // The details of the auction.
+}
+
+// Request for the latest transactions of bids (TOB).
+message GetLatestTobRequest {
+  int64 chain_id = 1; // The unique identifier of the chain.
+}
+
+// Response containing the latest transactions of bids.
+message GetLatestTobResponse {
+  repeated Tx tx_list = 1; // The list of transactions.
+}
+
+// Request for the current state of an auction.
+message GetAuctionStateRequest {
+  int64 chain_id = 1; // The unique identifier of the chain.
+}
+
+// Response containing the current state of an auction.
+message GetAuctionStateResponse {
+  AuctionState state = 1; // The current state of the auction.
+}
+
+// Represents a transaction submitted by a bidder.
+message Tx {
+  string tx_data = 1; // The raw transaction data.
+}
+
+// Represents a bid submitted by a buyer.
+message Bid {
+  string bidder_addr = 3;      // The address of the bidder.
+  int64 bid_amount = 4;        // The amount of the bid.
+  string bidder_signature = 5; // The signature of the bidder.
+  repeated Tx tx_list = 6;     // The list of transactions associated with the bid.
+}
+
+// Represents the details of an auction.
+message AuctionInfo {
+  string auction_id = 1;       // The unique identifier of the auction.
+  int64 chain_id = 2;          // The unique identifier of the chain.
+  int64 start_time = 3;        // The start time of the auction (Unix timestamp in milliseconds).
+  int64 end_time = 4;          // The end time of the auction (Unix timestamp in milliseconds).
+  string seller_address = 5;   // The address of the seller.
+  int64 block_number = 6;      // The block number where the auction is registered.
+  int64 blockspace_size = 7;   // The block space size being auctioned.
+  string seller_signature = 8; // The seller's signature for the auction.
+}
+
+// Represents the state of an auction.
+message AuctionState {
+  AuctionInfo auction_info = 1;   // The details of the auction.
+  repeated Bid bid_list = 2;      // The list of all bids submitted.
+  repeated Tx sorted_tx_list = 3; // The list of transactions sorted.
+  bool is_ended = 4;              // Whether the auction has ended.
+}

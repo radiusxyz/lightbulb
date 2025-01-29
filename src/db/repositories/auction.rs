@@ -29,7 +29,7 @@ impl AuctionRepository for SqliteAuctionRepository {
         "#;
 
         sqlx::query(query)
-            .bind(&auction_info.id)
+            .bind(&auction_info.auction_id)
             .bind(auction_info.chain_id as i64)
             .bind(auction_info.block_number as i64)
             .bind(&auction_info.seller_address)
@@ -104,7 +104,7 @@ mod tests {
 
         // Create AuctionInfo for testing
         let auction_info = AuctionInfo {
-            id: "test_auction".to_string(),
+            auction_id: "test_auction".to_string(),
             chain_id: 1,
             block_number: 100,
             seller_address: "test_seller".to_string(),
@@ -121,7 +121,7 @@ mod tests {
         let fetched = repo.get_auction_info("test_auction").await?;
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
-        assert_eq!(fetched.id, auction_info.id);
+        assert_eq!(fetched.auction_id, auction_info.auction_id);
         assert_eq!(
             fetched.block_number as i64,
             auction_info.block_number as i64
@@ -146,7 +146,7 @@ mod tests {
 
         // Create and insert two AuctionInfo instances
         let auction1 = AuctionInfo {
-            id: "auction1".to_string(),
+            auction_id: "auction1".to_string(),
             chain_id: 1,
             block_number: 101,
             seller_address: "seller1".to_string(),
@@ -157,7 +157,7 @@ mod tests {
         };
 
         let auction2 = AuctionInfo {
-            id: "auction2".to_string(),
+            auction_id: "auction2".to_string(),
             chain_id: 2,
             block_number: 102,
             seller_address: "seller2".to_string(),
@@ -187,7 +187,7 @@ mod tests {
 
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
-            id: "auction_to_delete".to_string(),
+            auction_id: "auction_to_delete".to_string(),
             chain_id: 1,
             block_number: 103,
             seller_address: "seller3".to_string(),
@@ -221,7 +221,7 @@ mod tests {
 
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
-            id: "duplicate_auction".to_string(),
+            auction_id: "duplicate_auction".to_string(),
             chain_id: 1,
             block_number: 104,
             seller_address: "seller4".to_string(),

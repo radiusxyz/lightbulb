@@ -2,4 +2,4 @@ pub mod manager;
 pub mod worker;
 
 pub use manager::AuctionManager;
-pub use worker::AuctionWorker;
+pub use worker::AuctionWorkerClient;

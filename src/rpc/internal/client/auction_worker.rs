@@ -1,10 +1,9 @@
 use crate::{
     core::{
-        auction::worker::AuctionWorkerClient,
         domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId},
         errors::AuctionError,
     },
-    rpc::internal::proto,
+    rpc::internal::{api::auction_worker::AuctionWorkerApi, proto},
 };
 
 #[derive(Clone)]
@@ -20,7 +19,7 @@ impl GrpcAuctionWorkerClient {
 }
 
 #[async_trait::async_trait]
-impl AuctionWorkerClient for GrpcAuctionWorkerClient {
+impl AuctionWorkerApi for GrpcAuctionWorkerClient {
     async fn add_auction(&mut self, auction_info: AuctionInfo) -> Result<bool, AuctionError> {
         let request = tonic::Request::new(proto::AddAuctionRequest {
             auction_info: Some(auction_info.into()),

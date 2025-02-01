@@ -1,29 +1,18 @@
+pub mod bid;
+
 use std::net::SocketAddr;
 
 use jsonrpsee::{
     server::{Server, ServerBuilder, ServerHandle},
     RpcModule,
 };
-use thiserror::Error;
 use tower::{
     layer::util::{Identity, Stack},
     ServiceBuilder,
 };
 use tower_http::cors::CorsLayer;
 
-use crate::rpc::utils::create_cors_layer;
-
-// =====================
-// Custom error types
-// =====================
-
-#[derive(Debug, Error)]
-pub enum RpcError {
-    #[error("{0} server error: {1}")]
-    IoError(ServerKind, #[source] std::io::Error),
-    #[error("Custom error: {0}")]
-    Custom(String),
-}
+use crate::rpc::{errors::RpcError, utils::create_cors_layer};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ServerKind {
@@ -41,10 +30,6 @@ impl std::fmt::Display for ServerKind {
         }
     }
 }
-
-// =====================
-// WsHttpServerKind enum
-// =====================
 
 /// Enum representing a server built either with or without CORS middleware.
 pub enum WsHttpServerKind {
@@ -99,10 +84,6 @@ impl WsHttpServerKind {
         }
     }
 }
-
-// =====================
-// RPC Server configuration (Builder)
-// =====================
 
 #[derive(Default)]
 pub struct RpcServerConfig {
@@ -171,10 +152,6 @@ impl RpcServerConfig {
     }
 }
 
-// =====================
-// RPC Server structure
-// =====================
-
 pub struct RpcServer {
     http_server: WsHttpServerKind,
     ws_server: WsHttpServerKind,
@@ -192,10 +169,6 @@ impl RpcServer {
         })
     }
 }
-
-// =====================
-// RPC Server Handle
-// =====================
 
 pub struct RpcServerHandle {
     pub http: Option<ServerHandle>,

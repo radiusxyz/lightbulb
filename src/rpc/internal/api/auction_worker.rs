@@ -4,7 +4,7 @@ use crate::core::{
 };
 
 #[async_trait::async_trait]
-pub trait AuctionWorkerClient {
+pub trait AuctionWorkerApi {
     async fn add_auction(&mut self, auction_info: AuctionInfo) -> Result<bool, AuctionError>;
     async fn submit_bids(
         &mut self,

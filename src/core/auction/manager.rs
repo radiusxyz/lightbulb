@@ -6,8 +6,8 @@ use crate::{
     core::{
         auction::AuctionWorkerClient,
         domain::{AuctionId, AuctionInfo, Bid, ChainId},
+        registry::{AuctionRegistry, RegistryService},
     },
-    services::registry::{AuctionRegistry, RegistryService},
     utils::{
         errors::AuctionError,
         types::{ArcRwLock, ArcRwLockHashMap},

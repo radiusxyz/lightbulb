@@ -1,6 +1,4 @@
-// Implement From traits for converting between gRPC and Rust types
-
-use crate::{core::domain, grpc::proto};
+use crate::{core::domain, rpc::internal::proto};
 
 impl From<proto::auction::Tx> for domain::Tx {
     fn from(proto_tx: proto::auction::Tx) -> Self {

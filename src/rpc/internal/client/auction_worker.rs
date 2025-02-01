@@ -3,7 +3,7 @@ use crate::{
         auction::worker::AuctionWorkerClient,
         domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId},
     },
-    grpc::proto,
+    rpc::internal::proto,
     utils::errors::AuctionError,
 };
 

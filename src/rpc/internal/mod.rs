@@ -1,5 +1,4 @@
 pub mod client;
-pub mod utils;
 
 pub mod proto {
     pub mod auction {

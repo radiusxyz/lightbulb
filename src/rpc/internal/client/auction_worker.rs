@@ -2,9 +2,9 @@ use crate::{
     core::{
         auction::worker::AuctionWorkerClient,
         domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId},
+        errors::AuctionError,
     },
     rpc::internal::proto,
-    utils::errors::AuctionError,
 };
 
 #[derive(Clone)]
@@ -73,8 +73,8 @@ mod tests {
     use tokio;
 
     use super::*;
-    use crate::{
-        core::domain::{AuctionInfo, Bid, Tx},
+    use crate::core::{
+        domain::{AuctionInfo, Bid, Tx},
         utils::helpers::current_unix_ms,
     };
 

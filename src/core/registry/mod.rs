@@ -9,9 +9,10 @@ pub use bid::BidRegistry;
 pub use chain::ChainRegistry;
 use tokio::sync::RwLock;
 
-use crate::{
-    core::domain::{AuctionInfo, ChainId, ChainInfo},
-    utils::{errors::RegistryError, types::ArcRwLock},
+use crate::core::{
+    domain::{AuctionInfo, ChainId, ChainInfo},
+    errors::RegistryError,
+    utils::types::ArcRwLock,
 };
 
 /// `RegistryService` handles the registration and validation of chains and auctions.

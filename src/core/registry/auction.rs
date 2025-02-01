@@ -6,12 +6,10 @@ use std::{
 
 use tokio::sync::RwLock;
 
-use crate::{
-    core::{
-        domain::{AuctionInfo, ChainId},
-        registry::ChainRegistry,
-    },
-    utils::errors::RegistryError,
+use crate::core::{
+    domain::{AuctionInfo, ChainId},
+    errors::RegistryError,
+    registry::ChainRegistry,
 };
 
 /// `AuctionRegistry` manages queues of auction information for multiple chains.

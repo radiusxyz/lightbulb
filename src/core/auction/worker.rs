@@ -1,6 +1,6 @@
-use crate::{
-    core::domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId},
-    utils::errors::AuctionError,
+use crate::core::{
+    domain::{AuctionId, AuctionInfo, AuctionState, Bid, ChainId},
+    errors::AuctionError,
 };
 
 #[async_trait::async_trait]

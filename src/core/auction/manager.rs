@@ -2,16 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
 
-use crate::{
-    core::{
-        auction::AuctionWorkerClient,
-        domain::{AuctionId, AuctionInfo, Bid, ChainId},
-        registry::{AuctionRegistry, RegistryService},
-    },
-    utils::{
-        errors::AuctionError,
-        types::{ArcRwLock, ArcRwLockHashMap},
-    },
+use crate::core::{
+    auction::AuctionWorkerClient,
+    domain::{AuctionId, AuctionInfo, Bid, ChainId},
+    errors::AuctionError,
+    registry::{AuctionRegistry, RegistryService},
+    utils::types::{ArcRwLock, ArcRwLockHashMap},
 };
 
 /// `AuctionManager` is responsible for scheduling auctions (e.g., starting new auctions, handling bids, requests for information).

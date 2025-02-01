@@ -1,8 +1,8 @@
 use std::{collections::HashMap, mem::take};
 
-use crate::{
-    core::domain::{Bid, ChainId},
-    utils::errors::RegistryError,
+use crate::core::{
+    domain::{Bid, ChainId},
+    errors::RegistryError,
 };
 
 #[derive(Default)]

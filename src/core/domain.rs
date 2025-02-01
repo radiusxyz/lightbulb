@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::utils::{errors::DatabaseError, helpers::compute_hash};
+use crate::{core::utils::helpers::compute_hash, db::errors::DatabaseError};
 
 /// Represents a transaction submitted by a bidder (mock).
 #[derive(Debug, Clone, PartialEq, Eq)]

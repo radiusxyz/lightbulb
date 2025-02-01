@@ -2,8 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     core::domain::{AuctionInfo, AuctionRepository},
-    db::pool::DbPool,
-    utils::errors::DatabaseError,
+    db::{errors::DatabaseError, pool::DbPool},
 };
 
 /// `SqliteAuctionRepository` provides SQLite-based implementations for managing auction data.
@@ -24,7 +23,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Inserts a new auction into the database.
     async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError> {
         let query = r#"
-            INSERT INTO auctions (id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature)
+            INSERT INTO auctions (auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
@@ -49,9 +48,9 @@ impl AuctionRepository for SqliteAuctionRepository {
         auction_id: &str,
     ) -> Result<Option<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
+            SELECT auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
-            WHERE id = ?
+            WHERE auction_id = ?
         "#;
 
         let auction = sqlx::query_as::<_, AuctionInfo>(query)
@@ -65,7 +64,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Lists all auctions stored in the database.
     async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
+            SELECT auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
         "#;
 
@@ -79,7 +78,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Deletes an auction by ID.
     async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError> {
         let query = r#"
-            DELETE FROM auctions WHERE id = ?
+            DELETE FROM auctions WHERE auction_id = ?
         "#;
 
         sqlx::query(query)

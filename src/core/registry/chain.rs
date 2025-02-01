@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    core::domain::{ChainId, ChainInfo},
-    utils::errors::RegistryError,
+use crate::core::{
+    domain::{ChainId, ChainInfo},
+    errors::RegistryError,
 };
 
 /// `ChainRegistry` manages information about registered blockchain networks.

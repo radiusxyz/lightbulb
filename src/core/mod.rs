@@ -1,4 +1,5 @@
 pub mod auction;
 pub mod domain;
-
-pub use auction::AuctionManager;
+pub mod errors;
+pub mod registry;
+pub mod utils;

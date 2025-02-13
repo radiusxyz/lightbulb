@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS auctions (
-    id TEXT PRIMARY KEY,
+    auction_id TEXT PRIMARY KEY,
     chain_id INTEGER NOT NULL,
     block_number INTEGER NOT NULL,
     seller_address TEXT NOT NULL,

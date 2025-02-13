@@ -2,8 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     core::domain::{AuctionInfo, AuctionRepository},
-    db::pool::DbPool,
-    utils::errors::DatabaseError,
+    db::{errors::DatabaseError, pool::DbPool},
 };
 
 /// `SqliteAuctionRepository` provides SQLite-based implementations for managing auction data.
@@ -24,12 +23,12 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Inserts a new auction into the database.
     async fn create_auction(&self, auction_info: AuctionInfo) -> Result<(), DatabaseError> {
         let query = r#"
-            INSERT INTO auctions (id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature)
+            INSERT INTO auctions (auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         "#;
 
         sqlx::query(query)
-            .bind(&auction_info.id)
+            .bind(&auction_info.auction_id)
             .bind(auction_info.chain_id as i64)
             .bind(auction_info.block_number as i64)
             .bind(&auction_info.seller_address)
@@ -49,9 +48,9 @@ impl AuctionRepository for SqliteAuctionRepository {
         auction_id: &str,
     ) -> Result<Option<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
+            SELECT auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
-            WHERE id = ?
+            WHERE auction_id = ?
         "#;
 
         let auction = sqlx::query_as::<_, AuctionInfo>(query)
@@ -65,7 +64,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Lists all auctions stored in the database.
     async fn list_auctions(&self) -> Result<Vec<AuctionInfo>, DatabaseError> {
         let query = r#"
-            SELECT id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
+            SELECT auction_id, chain_id, block_number, seller_address, blockspace_size, start_time, end_time, seller_signature
             FROM auctions
         "#;
 
@@ -79,7 +78,7 @@ impl AuctionRepository for SqliteAuctionRepository {
     /// Deletes an auction by ID.
     async fn delete_auction(&self, auction_id: &str) -> Result<(), DatabaseError> {
         let query = r#"
-            DELETE FROM auctions WHERE id = ?
+            DELETE FROM auctions WHERE auction_id = ?
         "#;
 
         sqlx::query(query)
@@ -104,7 +103,7 @@ mod tests {
 
         // Create AuctionInfo for testing
         let auction_info = AuctionInfo {
-            id: "test_auction".to_string(),
+            auction_id: "test_auction".to_string(),
             chain_id: 1,
             block_number: 100,
             seller_address: "test_seller".to_string(),
@@ -121,7 +120,7 @@ mod tests {
         let fetched = repo.get_auction_info("test_auction").await?;
         assert!(fetched.is_some());
         let fetched = fetched.unwrap();
-        assert_eq!(fetched.id, auction_info.id);
+        assert_eq!(fetched.auction_id, auction_info.auction_id);
         assert_eq!(
             fetched.block_number as i64,
             auction_info.block_number as i64
@@ -146,7 +145,7 @@ mod tests {
 
         // Create and insert two AuctionInfo instances
         let auction1 = AuctionInfo {
-            id: "auction1".to_string(),
+            auction_id: "auction1".to_string(),
             chain_id: 1,
             block_number: 101,
             seller_address: "seller1".to_string(),
@@ -157,7 +156,7 @@ mod tests {
         };
 
         let auction2 = AuctionInfo {
-            id: "auction2".to_string(),
+            auction_id: "auction2".to_string(),
             chain_id: 2,
             block_number: 102,
             seller_address: "seller2".to_string(),
@@ -187,7 +186,7 @@ mod tests {
 
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
-            id: "auction_to_delete".to_string(),
+            auction_id: "auction_to_delete".to_string(),
             chain_id: 1,
             block_number: 103,
             seller_address: "seller3".to_string(),
@@ -221,7 +220,7 @@ mod tests {
 
         // Create and insert AuctionInfo
         let auction = AuctionInfo {
-            id: "duplicate_auction".to_string(),
+            auction_id: "duplicate_auction".to_string(),
             chain_id: 1,
             block_number: 104,
             seller_address: "seller4".to_string(),

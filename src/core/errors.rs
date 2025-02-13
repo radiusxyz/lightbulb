@@ -37,6 +37,12 @@ pub enum AuctionError {
 
     #[error("Auction has already ended")]
     AuctionEnded,
+
+    #[error("Auction Not Added")]
+    AuctionNotAdded,
+
+    #[error("Grpc Error: {0}")]
+    GrpcError(String),
 }
 
 /// A set of possible errors that can occur in the registry workflow.
@@ -105,23 +111,5 @@ impl From<AuctionError> for BidError {
             AuctionError::InsufficientFunds => BidError::InsufficientFunds,
             _ => BidError::AuctionError,
         }
-    }
-}
-
-#[derive(Error, Debug)]
-pub enum DatabaseError {
-    #[error("Database error: {0}")]
-    DatabaseError(String),
-}
-
-impl From<sqlx::Error> for DatabaseError {
-    fn from(err: sqlx::Error) -> Self {
-        Self::DatabaseError(err.to_string())
-    }
-}
-
-impl From<sqlx::migrate::MigrateError> for DatabaseError {
-    fn from(err: sqlx::migrate::MigrateError) -> Self {
-        Self::DatabaseError(err.to_string())
     }
 }

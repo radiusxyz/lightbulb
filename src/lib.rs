@@ -1,4 +1,3 @@
 pub mod core;
 pub mod db;
-pub mod services;
-pub mod utils;
+pub mod rpc;
